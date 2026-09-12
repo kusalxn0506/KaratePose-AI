@@ -132,4 +132,4 @@ This project is part of a BSc (Hons) research study. All rights reserved.
 
 ## 👤 Author
 
-*BSc (Hons) Computing — Research Project*
+*BSc (Hons) Artificial Intelligence — Research Project*
