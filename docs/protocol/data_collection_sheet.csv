@@ -1,0 +1,9 @@
+session_id,take_id,practitioner_id,garment_condition,technique,rep_number,camera_fps,resolution,shutter_speed,lighting_lux,file_name,notes
+S01,T01,P01,Set_A_Control,Oi-zuki,1-10,60,4K_3840x2160,1/500s,550,SETA_OIZUKI_T01_60FPS.mov,Form-fitting black compression with joint markers
+S01,T02,P01,Set_A_Control,Gedan-barai,1-10,60,4K_3840x2160,1/500s,550,SETA_GEDAN_T01_60FPS.mov,Form-fitting black compression with joint markers
+S01,T03,P01,Set_A_Control,Zenkutsu_to_Kiba,1-10,60,4K_3840x2160,1/500s,550,SETA_STANCE_T01_60FPS.mov,Form-fitting black compression with joint markers
+S01,T04,P01,Set_B_Experimental,Oi-zuki,1-10,60,4K_3840x2160,1/500s,550,SETB_OIZUKI_T01_60FPS.mov,14oz heavyweight canvas Karate Gi
+S01,T05,P01,Set_B_Experimental,Gedan-barai,1-10,60,4K_3840x2160,1/500s,550,SETB_GEDAN_T01_60FPS.mov,14oz heavyweight canvas Karate Gi
+S01,T06,P01,Set_B_Experimental,Zenkutsu_to_Kiba,1-10,60,4K_3840x2160,1/500s,550,SETB_STANCE_T01_60FPS.mov,14oz heavyweight canvas Karate Gi
+S01,T07,P01,Set_A_Control,Oi-zuki,1-5,240,1080p_1920x1080,Auto_HFR,550,SETA_OIZUKI_T02_240FPS.mov,High-speed ground truth validation subsample
+S01,T08,P01,Set_B_Experimental,Oi-zuki,1-5,240,1080p_1920x1080,Auto_HFR,550,SETB_OIZUKI_T02_240FPS.mov,High-speed occluded validation subsample

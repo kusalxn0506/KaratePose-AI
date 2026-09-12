@@ -1,0 +1,39 @@
+\section{Biomechanical Center of Gravity Modeling}
+\label{sec:biomechanics}
+
+To quantify athletic stability and stance depth from 2D coordinate streams, we implement a linked-segment human body model parameterized by de Leva's adjustments to Zatsiorsky-Seluyanov's segment inertia parameters \cite{deleva1996adjustments}.
+
+\begin{table}[h]
+\centering
+\caption{Segment Mass Proportions (de Leva, 1996)}
+\label{tab:deleva_weights}
+\begin{tabular}{lcc}
+\hline
+\textbf{Segment ($i$)} & \textbf{Relative Mass ($w_i$)} & \textbf{Proximal Boundary $\to$ Distal} \\
+\hline
+Head / Neck & $0.0681$ & Top of Head $\to$ C7 / Acromion Midpoint \\
+Trunk / Torso & $0.4346$ & Acromion Midpoint $\to$ Greater Trochanter Midpoint \\
+Upper Arm ($\times 2$) & $0.0263$ & Acromion $\to$ Lateral Epicondyle \\
+Forearm ($\times 2$) & $0.0150$ & Lateral Epicondyle $\to$ Ulnar Styloid \\
+Hand ($\times 2$) & $0.0059$ & Ulnar Styloid $\to$ Metacarpophalangeal \\
+Thigh ($\times 2$) & $0.1416$ & Greater Trochanter $\to$ Femoral Condyle \\
+Shank ($\times 2$) & $0.0433$ & Femoral Condyle $\to$ Lateral Malleolus \\
+Foot ($\times 2$) & $0.0137$ & Lateral Malleolus $\to$ Distal Phalanges \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Global Center of Gravity ($\mathbf{P}_{\text{CoG}}$)}
+For each video frame $t$, the global 2D Center of Gravity $(X_{\text{CoG}}, Y_{\text{CoG}})$ is computed as the mass-weighted sum of individual segment centers of mass $\mathbf{p}_i = (x_i, y_i)$:
+\begin{equation}
+    X_{\text{CoG}}(t) = \sum_{i=1}^{S} w_i \cdot x_i(t), \quad Y_{\text{CoG}}(t) = \sum_{i=1}^{S} w_i \cdot y_i(t)
+    \label{eq:cog_formula}
+\end{equation}
+where $\sum_{i=1}^{S} w_i = 1.0$.
+
+\subsection{Stance Depth ($\mathcal{D}_{\text{stance}}$) \& Base of Support}
+Stance depth is extracted as the Euclidean distance between the lead and rear ankle joint coordinates projected onto the horizontal ground plane:
+\begin{equation}
+    \mathcal{D}_{\text{stance}}(t) = \left| x_{\text{ankle, lead}}(t) - x_{\text{ankle, rear}}(t) \right| \cdot S_{px}^{-1}
+\end{equation}
+where $S_{px}$ is the pixel-to-meter scaling factor obtained from the calibration phase.

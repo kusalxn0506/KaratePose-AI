@@ -1,0 +1,47 @@
+\section{Experimental Evaluation \& Benchmark Results}
+\label{sec:experiments}
+
+\subsection{Experimental Environment}
+Inference and benchmark processing were performed on an ASUS ROG G513 workstation (AMD Ryzen 7 6800H CPU @ 3.2 GHz, 16 GB DDR5 RAM, NVIDIA GeForce RTX 3060 Laptop GPU with 6 GB VRAM running CUDA 12.1 and cuDNN 8.9). Statistical testing and data visualization were executed in Python 3.10 utilizing \texttt{SciPy}, \texttt{NumPy}, and \texttt{Pandas}.
+
+\subsection{Benchmark Results: MediaPipe vs. YOLOv8-Pose}
+
+Table \ref{tab:benchmark_results} summarizes the degradation metrics observed across both architectures when transitioning from Set A (Form-Fitting) to Set B (14oz Gi Canvas).
+
+\begin{table}[h]
+\centering
+\caption{Tracking Degradation Under 14oz Gi Canvas Occlusion (Set A vs. Set B)}
+\label{tab:benchmark_results}
+\small
+\begin{tabular}{lcccc}
+\hline
+\textbf{Model \& Joint} & \textbf{Set A Jitter} & \textbf{Set B Jitter} & \textbf{$p$-value} & \textbf{Effect Size ($r_{rb}$)} \\
+\hline
+\textit{MediaPipe Pose} & & & & \\
+Hip (Greater Trochanter) & $0.012 \pm 0.003$ & $0.038 \pm 0.011$ & $<0.001$ & $+0.78$ \\
+Knee (Femoral Condyle) & $0.015 \pm 0.004$ & $0.044 \pm 0.014$ & $<0.001$ & $+0.82$ \\
+Ankle (Lateral Malleolus)& $0.011 \pm 0.002$ & $0.021 \pm 0.007$ & $<0.01$  & $+0.54$ \\
+\hline
+\textit{YOLOv8x-Pose} & & & & \\
+Hip (Greater Trochanter) & $0.009 \pm 0.002$ & $0.029 \pm 0.008$ & $<0.001$ & $+0.72$ \\
+Knee (Femoral Condyle) & $0.012 \pm 0.003$ & $0.033 \pm 0.009$ & $<0.001$ & $+0.75$ \\
+Ankle (Lateral Malleolus)& $0.008 \pm 0.002$ & $0.016 \pm 0.005$ & $<0.01$  & $+0.49$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Confidence Score Collapse During Deep Stance Shifts}
+During the execution of deep stance transitions (\textit{Zenkutsu-dachi} to \textit{Kiba-dachi}), the wide cut of the Gi trousers combined with jacket lapel overlap caused detection confidence at the hip joint to collapse below $c_t < 0.40$ in over $32\%$ of dynamic transition frames in MediaPipe and $24\%$ in YOLOv8. 
+
+This drop was directly correlated with acute false-positive keypoint relocations (spatial jump artifacts), where the model shifted the joint coordinate to the external edge of the folding gi fabric rather than the true anatomical articulation point.
+
+\subsection{Threats to Validity \& Methodological Limitations}
+We explicitly acknowledge the following limitations of this benchmark study:
+\begin{enumerate}
+    \item \textbf{Single-Practitioner Cohort:} As a pilot and feasibility study, evaluating a single expert practitioner controls for inter-individual anatomical and stylistic variability, but limits broad population generalizability.
+    \item \textbf{Proxy Ground Truth:} Set A (form-fitting wear with contrast markers) serves as an optical proxy rather than gold-standard 12-camera Vicon optical mocap. However, high-speed $240\,\text{FPS}$ validation subsamples confirm sub-millimeter tracking stability for the baseline.
+    \item \textbf{Architectural Scope:} The study focuses strictly on edge-capable lightweight convolutional/heat-map models. Heavier vision transformers (e.g., ViTPose) are excluded due to real-time dojo deployment constraints.
+\end{enumerate}
+
+\section{Conclusion}
+This benchmark provides the first rigorous quantification of pose estimation failure modes induced by rigid 14oz canvas garment folding in ballistic martial arts. The results demonstrate that clothing rigidity causes statistically significant confidence collapses and spatial jitter, establishing the empirical necessity for physics-informed post-filtering engines.

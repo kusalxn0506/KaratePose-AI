@@ -1,0 +1,35 @@
+# =============================================================================
+# KaratePose-AI — Python Dependencies
+# =============================================================================
+# Install all dependencies with:
+#     pip install -r requirements.txt
+#
+# If you're using PyCharm Pro, it will auto-detect this file and offer to
+# create a virtual environment for you. Say YES — it keeps your project
+# dependencies isolated from your system Python.
+# =============================================================================
+
+# --- Core Scientific Computing ---
+numpy>=1.24.0            # Fast numerical arrays and matrix math (the backbone of everything)
+pandas>=2.0.0            # DataFrames — like Excel spreadsheets for Python
+
+# --- Computer Vision & Pose Estimation ---
+opencv-python>=4.8.0     # OpenCV — reading videos, processing images, drawing overlays
+mediapipe==0.10.35       # Google MediaPipe — extracts 33 body landmarks from video
+                         # PINNED: v0.10.35 is the last version that works on macOS Apple Silicon.
+                         # v1.0.x crashes on macOS due to a Metal GPU bug in TensorsToDetectionsCalculator.
+ultralytics>=8.0.0       # Ultralytics YOLOv8 — extracts 17 COCO keypoints from video
+
+# --- Statistical Analysis ---
+scipy>=1.11.0            # Scientific computing — Wilcoxon test, Shapiro-Wilk, etc.
+statsmodels>=0.14.0      # Advanced statistics — Linear Mixed-Effects Models (LMM)
+pingouin>=0.5.3          # Friendly statistics — effect sizes, ICC, paired tests
+# spm1d>=0.4.0           # Statistical Parametric Mapping (install separately if needed)
+
+# --- Visualisation ---
+matplotlib>=3.7.0        # The foundational plotting library
+seaborn>=0.12.0          # Beautiful statistical plots built on matplotlib
+
+# --- Utilities ---
+tqdm>=4.65.0             # Progress bars — see how long processing will take
+pathlib2>=2.3.0          # File path handling (backport, usually built-in)

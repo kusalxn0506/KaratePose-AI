@@ -1,0 +1,44 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{microtype}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Characterizing Monocular Pose Estimation Degradation Under Rigid Canvas Garment Occlusion in High-Velocity Martial Arts Kinematics}
+
+\author{\IEEEauthorblockN{First Author\textsuperscript{1,2}, Co-Author\textsuperscript{1}, Research Supervisor\textsuperscript{1,2}}
+\IEEEauthorblockA{\textsuperscript{1}\textit{Department of Artificial Intelligence, NSBM Green University, Homagama, Sri Lanka} \\
+\textsuperscript{2}\textit{School of Engineering, Computing and Mathematics, University of Plymouth, Plymouth, United Kingdom} \\
+Email: \{student\}@students.plymouth.ac.uk, \{supervisor\}@plymouth.ac.uk}
+}
+
+\maketitle
+
+\begin{abstract}
+Monocular markerless Human Pose Estimation (HPE) offers tremendous promise for pervasive athletic analytics and biomechanical feedback. However, state-of-the-art edge architectures (e.g., MediaPipe, YOLOv8-Pose) experience severe tracking degradation when exposed to concurrent high-velocity kinetics and complex garment occlusion. While prior literature has evaluated loose, flowing fabrics (draping), the mechanical effects of rigid, heavyweight cotton canvas (e.g., 14oz Karate Gi)—which forms sharp structural creases and introduces false limb boundaries—remain uncharacterized. This paper presents a controlled benchmark isolating rigid-fabric occlusion across standardized Shotokan karate techniques (\textit{Oi-zuki}, \textit{Gedan-barai}, \textit{Zenkutsu-dachi} to \textit{Kiba-dachi} transitions). Using a strictly paired dual-garment capture protocol (form-fitting control with contrast markers vs. 14oz canvas Gi), we quantify tracking degradation using Spatial Jitter and Detection Confidence Volatility. A pre-registered non-parametric Wilcoxon signed-rank test demonstrates statistically significant degradation ($p < 0.001$, large rank-biserial effect sizes $r_{rb} > 0.70$) in hip and knee joint localization during deep stance transitions. These findings provide empirical ground truth demonstrating the necessity of domain-specific kinematic filtering for martial arts computer vision.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Human Pose Estimation, Computer Vision in Sports, Martial Arts Analytics, Garment Occlusion, Kinematic Benchmarking, MediaPipe, YOLOv8.
+\end{IEEEkeywords}
+
+\input{sections/01_intro.tex}
+\input{sections/02_related_work.tex}
+\input{sections/03_methodology.tex}
+\input{sections/04_experiments.tex}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

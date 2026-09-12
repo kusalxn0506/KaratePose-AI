@@ -1,0 +1,36 @@
+\section{Related Work}
+\label{sec:related_work}
+
+The intersection of markerless pose estimation, sports biomechanics, and clothing occlusion has garnered substantial academic attention. However, existing literature remains fragmented across these distinct domains.
+
+\subsection{Human Pose Estimation in Martial Arts}
+Computer vision applications in martial arts have primarily targeted automated scoring, movement classification, and feedback for beginners. Echeverria and Santos \cite{echeverria2021modeling} employed OpenPose to model psychomotor performance in karate kumite. Lu \cite{lu2022aishifu} presented AiShifu, evaluating karate kata postures using single-frame heuristic matching. Zhang et al. \cite{zhang2017martial} introduced the Martial Arts, Dancing, and Sports (MADS) dataset, establishing a multi-view stereoscopic benchmark. 
+
+While these studies establish the feasibility of monocular pose estimation in martial arts, they operate under an implicit assumption of standard clothing or multi-camera laboratory setups. Crucially, they do not isolate fabric rigidity as an independent experimental variable.
+
+\subsection{Clothing-Induced Occlusion in Computer Vision}
+Occlusion remains one of the primary failure modes in monocular 2D and 3D HPE. Tanaka et al. \cite{looseclothes2022hfr} demonstrated that loose-fitting garments in winter sports degrade joint localization accuracy, proposing a high-frame-rate (HFR) camera with active blinking LEDs to recover ground truth. 
+
+However, loose casual or winter attire exhibits fluid, drape-type physics governed by low-stiffness textile mechanics. In contrast, martial arts uniforms (\textit{Karate Gi}) are manufactured from tightly woven, high-tensile cotton canvas ($300$--$450\,\text{g/m}^2$). During explosive stance transitions (e.g., \textit{Zenkutsu-dachi} to \textit{Kiba-dachi}), rigid canvas creates geometric folding wedges that obscure joint bifurcations and create artificial limb borders, presenting a distinct failure mode.
+
+\subsection{Comparative Lightweight Pose Estimators}
+Lightweight models designed for mobile and edge inference—specifically MediaPipe \cite{lugaresi2019mediapipe} and YOLOv8-Pose \cite{jocher2023yolov8}—are widely deployed in sports applications due to their balance of low latency and accessible hardware requirements. Dael et al. \cite{dael2026comparative} benchmarked MediaPipe and YOLOv8 on general martial arts footage, focusing on framerate and compute footprint. However, their evaluation did not quantitatively measure joint-level tracking degradation or confidence volatility under controlled apparel variations.
+
+\begin{table*}[t]
+\centering
+\caption{Taxonomy of Related Work vs. KaratePose-AI}
+\label{tab:related_work_matrix}
+\begin{tabular}{lcccc}
+\hline
+\textbf{Study} & \textbf{Application Domain} & \textbf{Kinetic Velocity} & \textbf{Garment Variable Isolated} & \textbf{Fabric Type Analyzed} \\
+\hline
+Echeverria \& Santos (2021) \cite{echeverria2021modeling} & Karate Kumite & High & No & Standard Athletic \\
+Zhang et al. (2017) \cite{zhang2017martial} & MADS Dataset & Moderate--High & No & Multi-garment mixed \\
+Dael et al. (2026) \cite{dael2026comparative} & Martial Arts HPE & High & No & Uncontrolled Gi \\
+Tanaka et al. (2022) \cite{looseclothes2022hfr} & Winter Sports & Moderate & Yes & Loose / Draping fabric \\
+Needham et al. (2021) \cite{sensors2021sprinting} & Sprint Biomechanics & High & No & Tight Running Lycra \\
+\hline
+\textbf{KaratePose-AI (This Work)} & \textbf{Shotokan Karate} & \textbf{High} & \textbf{Yes (Paired A/B)} & \textbf{14oz Rigid Canvas Gi} \\
+\hline
+\end{tabular}
+\end{table*}

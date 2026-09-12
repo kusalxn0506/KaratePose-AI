@@ -1,0 +1,8 @@
+\section{Introduction}
+\label{sec:intro}
+
+Monocular Human Pose Estimation (HPE) algorithms produce noisy coordinate trajectories when applied to dynamic martial arts movements performed in traditional attire. Heavyweight canvas uniforms (\textit{Karate Gi}) generate significant material folds, causing detection confidence collapse ($c_t < 0.50$) and false keypoint drift.
+
+Standard approaches in computer vision mitigate keypoint noise using blind, continuous temporal filters (e.g., standard Kalman filters, Butterworth low-pass filters, or Savitzky-Golay polynomial smoothing). However, in high-velocity martial arts, continuous filtering introduces severe phase lag and smooths away genuine ballistic kinematic spikes (such as explosive accelerations and instant deceleration at impact points, known in karate as \textit{Kime}).
+
+To overcome this limitation, this paper introduces a physics-informed, event-triggered kinematic filter engine. Rather than continuously modifying raw predictions, the filter dynamically activates only upon confidence collapse. While tracking confidence remains high, the filter continuously learns and updates limb velocity and acceleration vectors from the raw neural network output. When an occlusion event occurs, the filter rejects the corrupted coordinate and projects the joint forward using Newtonian momentum dynamics and anatomical constraints. Furthermore, the filtered coordinates feed into a segmental biomechanical model based on de Leva's anatomical mass distribution \cite{deleva1996adjustments} to calculate true Center of Gravity (CoG) and Stance Depth.

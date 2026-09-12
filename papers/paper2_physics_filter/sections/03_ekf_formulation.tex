@@ -1,0 +1,50 @@
+\section{Event-Triggered Kinematic Filter Architecture}
+\label{sec:ekf_formulation}
+
+\subsection{Kinematic State-Space Representation}
+For each tracked joint $j$, we define the continuous kinematic state vector $\mathbf{x}_t \in \mathbb{R}^6$ comprising 2D positions, linear velocities, and instantaneous accelerations:
+\begin{equation}
+    \mathbf{x}_t = \begin{bmatrix} x_t & y_t & \dot{x}_t & \dot{y}_t & \ddot{x}_t & \ddot{y}_t \end{bmatrix}^T
+\end{equation}
+
+Assuming a constant acceleration kinematic transition model over sampling interval $\Delta t = 1/f_s$ ($1/60\,\text{s}$):
+\begin{equation}
+    \mathbf{x}_t = \mathbf{F} \mathbf{x}_{t-1} + \mathbf{w}_t, \quad \mathbf{w}_t \sim \mathcal{N}(\mathbf{0}, \mathbf{Q})
+\end{equation}
+where the state transition matrix $\mathbf{F}$ is defined as:
+\begin{equation}
+    \mathbf{F} = \begin{bmatrix}
+    1 & 0 & \Delta t & 0 & \frac{1}{2}\Delta t^2 & 0 \\
+    0 & 1 & 0 & \Delta t & 0 & \frac{1}{2}\Delta t^2 \\
+    0 & 0 & 1 & 0 & \Delta t & 0 \\
+    0 & 0 & 0 & 1 & 0 & \Delta t \\
+    0 & 0 & 0 & 0 & 1 & 0 \\
+    0 & 0 & 0 & 0 & 0 & 1
+    \end{bmatrix}
+\end{equation}
+
+\subsection{Confidence-Gated Measurement Update}
+The raw neural network output provides observation $\mathbf{z}_t = [z_{x,t}, z_{y,t}]^T$ with confidence score $c_t \in [0, 1]$. The observation matrix $\mathbf{H} \in \mathbb{R}^{2 \times 6}$ extracts positional states:
+\begin{equation}
+    \mathbf{H} = \begin{bmatrix} 1 & 0 & 0 & 0 & 0 & 0 \\ 0 & 1 & 0 & 0 & 0 & 0 \end{bmatrix}
+\end{equation}
+
+\subsubsection{Dynamic Measurement Noise Covariance ($\mathbf{R}_t$)}
+Rather than treating observation variance as static, the measurement covariance matrix $\mathbf{R}_t$ dynamically scales inversely with detection confidence:
+\begin{equation}
+    \mathbf{R}_t = \begin{bmatrix} \sigma_{0}^2 \cdot e^{\gamma(1 - c_t)} & 0 \\ 0 & \sigma_{0}^2 \cdot e^{\gamma(1 - c_t)} \end{bmatrix}
+\end{equation}
+where $\sigma_0^2$ represents base sensor variance and $\gamma$ is a scaling hyperparameter.
+
+\subsubsection{Event-Trigger Rejection Rule}
+When confidence falls below an empirically optimized gating threshold $T_{\text{thresh}} = 0.50$, the raw measurement is rejected as corrupted by garment folding:
+\begin{equation}
+    \hat{\mathbf{x}}_t = \begin{cases} 
+    \hat{\mathbf{x}}_t^- + \mathbf{K}_t \left( \mathbf{z}_t - \mathbf{H}\hat{\mathbf{x}}_t^- \right) & \text{if } c_t \ge T_{\text{thresh}} \\
+    \hat{\mathbf{x}}_t^- & \text{if } c_t < T_{\text{thresh}} \text{ (Momentum Projection)}
+    \end{cases}
+\end{equation}
+where $\hat{\mathbf{x}}_t^-$ is the a priori state estimate, and $\mathbf{K}_t$ is the Kalman gain:
+\begin{equation}
+    \mathbf{K}_t = \mathbf{P}_t^- \mathbf{H}^T \left( \mathbf{H} \mathbf{P}_t^- \mathbf{H}^T + \mathbf{R}_t \right)^{-1}
+\end{equation}

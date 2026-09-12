@@ -1,0 +1,58 @@
+\section{Methodology \& Experimental Design}
+\label{sec:methodology}
+
+\subsection{Controlled Dual-Garment Video Corpus}
+To isolate the effect of rigid canvas occlusion from natural biological variance, we designed a strictly paired within-subject capture protocol:
+\begin{itemize}
+    \item \textbf{Condition A (Control / Baseline Proxy):} The athlete wears form-fitting, matte-black compression clothing. High-contrast adhesive optical markers ($25\,\text{mm}$ diameter) are attached directly over anatomical joint centers (lateral malleoli, lateral femoral condyles, greater trochanters, acromion processes, lateral epicondyles, and ulnar styloids).
+    \item \textbf{Condition B (Experimental):} The same athlete wears a traditional, unbleached $14\,\text{oz}$ cotton canvas Karate Gi, tied according to standard WKF regulations.
+\end{itemize}
+
+Both conditions were recorded sequentially under identical lighting ($>500\,\text{lux}$ diffuse illuminance) using a fixed-focal camera mounted at $1.0\,\text{m}$ height and $4.5\,\text{m}$ distance perpendicular to the movement trajectory, capturing 4K video at $60.0\,\text{FPS}$ with locked exposure ($1/500\,\text{s}$).
+
+\subsection{Standardized Shotokan Execution Protocol}
+Three foundational Shotokan karate techniques were performed across $N=10$ continuous repetitions per condition, governed by an audible $60\,\text{BPM}$ metronome cue:
+\begin{enumerate}
+    \item \textit{Oi-zuki} (Stepping lunge punch in \textit{Zenkutsu-dachi}): Rapid linear translation with full arm extension and counter-hip stabilization.
+    \item \textit{Gedan-barai} (Downward sweeping block in \textit{Zenkutsu-dachi}): Explosive torso rotation combined with high-acceleration upper-limb sweep.
+    \item \textit{Zenkutsu-dachi} to \textit{Kiba-dachi} Transition: $90^\circ$ pivot between deep stances, producing maximum canvas folding across the pelvic and femoral regions.
+\end{enumerate}
+
+\subsection{Coordinate Extraction \& Ingestion Pipeline}
+Videos were processed frame-by-frame using OpenCV and ingested into two candidate lightweight models:
+\begin{enumerate}
+    \item \textbf{Google MediaPipe Pose:} Extracts 33 body landmarks $\mathbf{p}_t = (x_t, y_t, z_t)$ with an associated visibility/confidence scalar $v_t \in [0, 1]$.
+    \item \textbf{Ultralytics YOLOv8x-Pose:} Extracts 17 COCO-topology keypoints $\mathbf{k}_t = (x_t, y_t)$ with a detection confidence score $c_t \in [0, 1]$.
+\end{enumerate}
+
+\subsection{Mathematical Metrics for Degradation}
+
+\subsubsection{Spatial Jitter ($J_t$)}
+Spatial jitter measures the frame-to-frame Euclidean displacement noise of a tracked joint coordinate independent of global kinematic translation:
+\begin{equation}
+    J_t^{(j)} = \sqrt{\left( x_t^{(j)} - x_{t-1}^{(j)} \right)^2 + \left( y_t^{(j)} - y_{t-1}^{(j)} \right)^2}
+    \label{eq:jitter}
+\end{equation}
+where $(x_t^{(j)}, y_t^{(j)})$ represents the normalized 2D coordinate of joint $j$ at frame $t$.
+
+\subsubsection{Confidence Score Volatility ($\mathcal{V}_c$)}
+Confidence volatility quantifies the instability of the model's self-reported certainty across a time window of $M$ frames:
+\begin{equation}
+    \mathcal{V}_c^{(j)} = \frac{1}{M-1} \sum_{t=2}^{M} \left| c_t^{(j)} - c_{t-1}^{(j)} \right|
+    \label{eq:confidence_volatility}
+\end{equation}
+
+\subsection{Pre-Registered Statistical Analysis Plan}
+Because spatial jitter and instantaneous coordinate errors in high-velocity movements violate normality assumptions (showing severe positive/right skewness), parametric tests such as Student's paired $t$-test are invalid. 
+
+We pre-register the \textbf{Wilcoxon Signed-Rank Test} (two-tailed, paired, non-parametric) to evaluate differences between Set A ($J_{\text{SetA}}$) and Set B ($J_{\text{SetB}}$):
+\begin{equation}
+    W = \min(W^+, W^-)
+\end{equation}
+where $W^+$ and $W^-$ represent the sum of positive and negative ranks of the paired differences $d_t = J_{\text{SetB}, t} - J_{\text{SetA}, t}$. 
+
+Effect sizes are quantified using the matched-pairs rank-biserial correlation ($r_{rb}$):
+\begin{equation}
+    r_{rb} = \frac{W^+ - W^-}{W^+ + W^-}
+\end{equation}
+Statistical significance is established at $\alpha = 0.05$.

@@ -1,0 +1,29 @@
+\section{Introduction}
+\label{sec:intro}
+
+Monocular markerless Human Pose Estimation (HPE) has advanced considerably in recent years, driven by deep neural network architectures such as Google MediaPipe \cite{lugaresi2019mediapipe} and YOLOv8-Pose \cite{jocher2023yolov8}. These lightweight, edge-deployable frameworks predict 2D or pseudo-3D joint coordinates at high inference speeds, enabling ubiquitous athletic and rehabilitation analytics without requiring expensive multi-camera optical motion capture (mocap) laboratories.
+
+Despite these advancements, state-of-the-art coordinate regression networks exhibit systematic performance degradation when deployed in domain-specific athletic environments characterized by high-velocity movement and complex clothing geometries. In particular, traditional martial arts such as Shotokan Karate present a compounding challenge:
+\begin{enumerate}
+    \item \textbf{High-Velocity Kinetic Transitions:} Explosive ballistic strikes and rapid stance shifts generate localized motion blur and rapid velocity vectors exceeding $8\,\text{m/s}$.
+    \item \textbf{Rigid Canvas Fabric Occlusion:} Practitioners wear traditional uniforms (\textit{Karate Gi} or \textit{Dogi}) constructed from heavyweight cotton canvas ($12\,\text{oz}$ to $16\,\text{oz}$, approximately $340$--$450\,\text{g/m}^2$).
+\end{enumerate}
+
+Unlike the loose, flowing fabrics studied in casual wear or winter sports literature \cite{looseclothes2022hfr}, heavyweight canvas does not smoothly drape over the human form. Instead, rigid canvas creases into sharp, structural folds that distort anatomical body contours, mask underlying joint centers (notably the greater trochanter and femoral condyles), and introduce false high-contrast edge gradients. When combined with explosive limb translation, standard pose estimators frequently suffer from coordinate dropouts, detection confidence collapse, and severe high-frequency spatial jitter.
+
+\begin{figure}[t]
+    \centering
+    % Placeholder for pipeline conceptual diagram
+    \fbox{\parbox{0.92\columnwidth}{\centering \small \textbf{Figure 1:} Overview of the KaratePose-AI Benchmarking Pipeline: Matched dual-garment capture (Set A: Form-fitting vs. Set B: 14oz Gi Canvas), multi-model landmark extraction, and non-parametric statistical degradation analysis.}}
+    \caption{Conceptual overview of the rigid-garment benchmark pipeline.}
+    \label{fig:overview}
+\end{figure}
+
+Prior research has addressed computer vision in martial arts (e.g., scoring and combat modeling in karate \cite{echeverria2021modeling, lu2022aishifu}, multi-view dataset benchmarks \cite{zhang2017martial}) or general model comparisons \cite{dael2026comparative}. However, none have systematically isolated and quantified the degradation vector introduced specifically by heavyweight canvas garment folding during ballistic martial arts kinetics.
+
+To address this gap, this paper presents the following contributions:
+\begin{itemize}
+    \item A rigorously controlled dual-garment experimental dataset pairing form-fitting athletic wear with high-contrast anatomical joint markers (Set A, ground-truth proxy) against a traditional 14oz canvas Karate Gi (Set B) across standardized Shotokan karate actions.
+    \item A quantitative benchmark characterizing tracking confidence volatility and spatial coordinate jitter in consumer-grade lightweight models (MediaPipe and YOLOv8-Pose).
+    \item A pre-registered, non-parametric statistical evaluation (Wilcoxon signed-rank test and rank-biserial effect sizes) verifying that rigid garment occlusion induces statistically significant tracking instability.
+\end{itemize}
