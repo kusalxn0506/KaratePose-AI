@@ -70,7 +70,7 @@ Karate Pose AI/
 ### Setup
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/KaratePose-AI.git
+git clone https://github.com/kusalxn0506/KaratePose-AI.git
 cd KaratePose-AI
 
 # 2. Create a virtual environment
@@ -132,4 +132,6 @@ This project is part of a BSc (Hons) research study. All rights reserved.
 
 ## 👤 Author
 
-*BSc (Hons) Artificial Intelligence — Research Project*
+**Kusal Nirmala**  
+*BSc (Hons) Artificial Intelligence*  
+*NSBM Green University / University of Plymouth*
