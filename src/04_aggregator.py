@@ -64,7 +64,13 @@ def detect_repetitions(landmarks_df: pd.DataFrame, technique: str, model_name: s
     # we can divide the total frames evenly by the number of expected repetitions.
     # -------------------------------------------------------------------------
     
-    total_frames = len(landmarks_df)
+    # BUG FIX: len(landmarks_df) counts ROWS, not unique frames.
+    # In long-format data with 15 joints per frame, len() returns 15× the real
+    # frame count. We must count unique frame numbers instead.
+    if 'frame' in landmarks_df.columns:
+        total_frames = landmarks_df['frame'].nunique()
+    else:
+        total_frames = len(landmarks_df)
     
     # Check if config overrides the default n_reps
     if technique in TECHNIQUES:
@@ -122,9 +128,14 @@ def aggregate_per_repetition(metrics_df: pd.DataFrame, rep_boundaries: List[Tupl
     
     for rep_id, (start_frame, end_frame) in enumerate(rep_boundaries, start=1):
         
-        # Slice the dataframe to only include frames within this specific repetition
-        # Ensure we have a frame index or column to filter by. Assuming index is the frame number.
-        rep_data = metrics_df.loc[start_frame:end_frame]
+        # Slice the dataframe to only include frames within this specific repetition.
+        # BUG FIX: .loc[start:end] slices by DataFrame INDEX (row number), not by
+        # the 'frame' column. In long-format data the index can be 0..10304 while
+        # frame values are 0..367. We must filter by the actual 'frame' column.
+        if 'frame' in metrics_df.columns:
+            rep_data = metrics_df[metrics_df['frame'].between(start_frame, end_frame)]
+        else:
+            rep_data = metrics_df.loc[start_frame:end_frame]
         
         for joint in joints:
             if 'joint_name' in rep_data.columns:
