@@ -7,7 +7,7 @@ from pathlib import Path
 
 # CONCEPT: We import our central configuration to maintain consistency across the project.
 # This prevents magic numbers and ensures we use the exact colors and styles defined.
-from src.config import PLOT_CONFIG, PATHS
+from src.config import PLOT_CONFIG, PATHS, PROJECT_ROOT
 
 # DESIGN NOTE: We set the matplotlib style globally to ensure all plots have a consistent,
 # publication-ready look. The 'seaborn-v0_8-whitegrid' style provides a clean background
@@ -341,45 +341,83 @@ def generate_all_plots(agg_a: pd.DataFrame, agg_b: pd.DataFrame, landmarks_a: pd
 
 if __name__ == '__main__':
     # =============================================================================
-    # SYNTHETIC DEMO DATA
+    # REAL DATA VISUALISATION DEMO
     # =============================================================================
-    print("Generating synthetic data for demo...")
-    
-    np.random.seed(42)
-    joints = ['ankle', 'knee', 'hip', 'shoulder', 'elbow', 'wrist']
-    frames = 100
-    
-    # Mock Aggregated Jitter Data
-    agg_a_data = {j: np.random.normal(loc=0.01, scale=0.005, size=50) for j in joints}
-    agg_b_data = {j: np.random.normal(loc=0.03, scale=0.015, size=50) for j in joints}
-    
-    df_agg_a = pd.DataFrame(agg_a_data)
-    df_agg_b = pd.DataFrame(agg_b_data)
-    
-    # Mock Landmark Confidence Data
-    land_a_data = {j: np.clip(np.random.normal(loc=0.9, scale=0.1, size=frames), 0, 1) for j in joints}
-    land_b_data = {j: np.clip(np.random.normal(loc=0.7, scale=0.3, size=frames), 0, 1) for j in joints}
-    
-    # Add a massive drop to simulate an occlusion event for Set B
-    land_b_data['wrist'][40:50] = np.random.uniform(0.1, 0.4, 10)
-    
-    df_land_a = pd.DataFrame(land_a_data)
-    df_land_b = pd.DataFrame(land_b_data)
-    
-    # Mock Stats Results
-    stats_dict = {
-        'Joint': joints,
-        'Model': ['MediaPipe']*6,
-        'Set A Median': [0.01]*6,
-        'Set B Median': [0.03]*6,
-        'p-value': [0.04, 0.01, 0.20, 0.001, 0.06, 0.03],
-        'p-corrected': [0.045, 0.015, 0.20, 0.002, 0.06, 0.035],
-        'Effect Size': [0.3, 0.5, 0.1, 0.7, 0.2, 0.4],
-        'Interpretation': ['Medium', 'Large', 'Small', 'Large', 'Small', 'Medium']
-    }
+    print("Generating plots from real metrics data...")
     
     out_dir = PATHS['plots']
-    print(f"Output directory resolved to: {out_dir}")
+    out_dir.mkdir(parents=True, exist_ok=True)
     
-    generate_all_plots(df_agg_a, df_agg_b, df_land_a, df_land_b, stats_dict, out_dir)
-    print("Demo complete!")
+    try:
+        # Load real data
+        df_jitter = pd.read_csv(PATHS['metrics'] / 'spatial_jitter.csv')
+        df_conf = pd.read_csv(PATHS['metrics'] / 'confidence_volatility.csv')
+        
+        # We only have 1 video, so let's simulate Set A vs Set B by splitting it in half
+        mp_jitter = df_jitter[df_jitter['model'] == 'mediapipe'].copy()
+        mp_conf = df_conf[df_conf['model'] == 'mediapipe'].copy()
+        
+        mid_frame = mp_jitter['frame'].max() // 2
+        
+        # 1. Prepare Timeseries (Landmarks) Data -> Wide format (frames as index, joints as columns)
+        land_a = mp_conf[mp_conf['frame'] <= mid_frame].pivot(index='frame', columns='joint_name', values='confidence')
+        land_b = mp_conf[mp_conf['frame'] > mid_frame].pivot(index='frame', columns='joint_name', values='confidence')
+        
+        # 2. Prepare Aggregated Jitter Data -> Wide format (reps as index, joints as columns)
+        # Import aggregator to get reps
+        # Import aggregator dynamically to handle the numbered filename
+        import importlib.util
+        spec_agg = importlib.util.spec_from_file_location('agg', str(PROJECT_ROOT / 'src' / '04_aggregator.py'))
+        agg = importlib.util.module_from_spec(spec_agg)
+        spec_agg.loader.exec_module(agg)
+        
+        # Detect all 10 reps across the full simulated video
+        bounds_all = agg.detect_repetitions(mp_jitter, 'OIZUKI', n_reps=10)
+        agg_long_all = agg.aggregate_per_repetition(mp_jitter, bounds_all, 'jitter')
+        
+        # Split odd reps into Set A, even reps into Set B to simulate the two conditions
+        agg_long_a = agg_long_all[agg_long_all['rep_id'] % 2 != 0].copy()
+        agg_long_b = agg_long_all[agg_long_all['rep_id'] % 2 == 0].copy()
+        
+        # Pivot to wide format for the plotting functions
+        agg_a = agg_long_a.pivot(index='rep_id', columns='joint_name', values='median')
+        agg_b = agg_long_b.pivot(index='rep_id', columns='joint_name', values='median')
+        
+        # 3. Mock Stats Dict (real stats require pingouin/statsmodels, keeping this simple for plotting)
+        stats_dict = {
+            'Joint': ['right_wrist', 'right_elbow'],
+            'Model': ['MediaPipe', 'MediaPipe'],
+            'Set A Median': [agg_a['right_wrist'].median(), agg_a['right_elbow'].median()],
+            'Set B Median': [agg_b['right_wrist'].median(), agg_b['right_elbow'].median()],
+            'p-value': [0.04, 0.01],
+            'Effect Size': [0.5, 0.7],
+            'Interpretation': ['Large', 'Large']
+        }
+        
+        # 4. Generate plots!
+        # Pick a joint that exists in our data
+        target_joint = 'right_wrist' if 'right_wrist' in agg_a.columns else agg_a.columns[0]
+        
+        print(f"Generating plots for joint: {target_joint}")
+        
+        # Generate them manually to inject our target joint
+        model_name = "MediaPipe"
+        p_values_all = {joint: 0.02 for joint in agg_a.columns}
+        
+        plot_jitter_comparison(agg_a, agg_b, target_joint, model_name, p_value=0.01, save_path=out_dir / f'jitter_comparison_{target_joint}.png')
+        plot_jitter_all_joints(agg_a, agg_b, model_name, p_values=p_values_all, save_path=out_dir / 'jitter_all_joints.png')
+        plot_confidence_heatmap(land_a, model_name, "Set A", save_path=out_dir / 'confidence_heatmap_set_a.png')
+        plot_confidence_timeseries(land_a, land_b, target_joint, model_name, save_path=out_dir / f'confidence_timeseries_{target_joint}.png')
+        
+        # Jitter timeseries needs wide format of the raw data, not aggregated data
+        jitter_raw_a = mp_jitter[mp_jitter['frame'] <= mid_frame].pivot(index='frame', columns='joint_name', values='jitter')
+        jitter_raw_b = mp_jitter[mp_jitter['frame'] > mid_frame].pivot(index='frame', columns='joint_name', values='jitter')
+        plot_jitter_timeseries(jitter_raw_a, jitter_raw_b, target_joint, model_name, save_path=out_dir / f'jitter_timeseries_{target_joint}.png')
+        
+        plot_statistical_summary_table(stats_dict, save_path=out_dir / 'statistical_summary.png')
+        
+        print(f"\n✅ All plots generated successfully in: {out_dir}")
+        
+    except FileNotFoundError as e:
+        print(f"\n❌ Error: Could not find metrics CSVs. Run 03_metrics.py first!\n({e})")
+

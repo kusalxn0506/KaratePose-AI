@@ -408,15 +408,22 @@ def main():
             sys.exit(1)
         all_aggregated = step_4_aggregate(all_metrics)
 
-    # Step 5: Statistics (requires both Set A and Set B data)
+    # Step 5: Statistics
     if args.step in ("all", "statistics"):
-        print("\n  📝 Note: Full statistical comparison requires both Set A and Set B data.")
-        print("     For sample testing, use the demo in 05_statistics.py directly.")
+        if args.sample:
+            print("\n  📝 Note: Skipping full statistics since we only have a sample video.")
+            print("     (Full stats require both Set A and Set B data)")
+        else:
+            print("\n  📝 Note: Full statistical comparison requires both Set A and Set B data.")
 
     # Step 6: Visualisation
     if args.step in ("all", "visualise"):
-        print("\n  📝 Note: Full visualisation requires completed statistical analysis.")
-        print("     For sample testing, use the demo in 08_visualiser.py directly.")
+        if args.sample:
+            print("\n  🎨 Generating visualisations from sample data...")
+            import subprocess
+            subprocess.run([sys.executable, "-m", "src.08_visualiser"])
+        else:
+            print("\n  📝 Note: Full visualisation requires completed statistical analysis.")
 
     # ── Print summary ───────────────────────────────────────────────────
     elapsed = time.time() - start_time
