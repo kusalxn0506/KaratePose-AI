@@ -16,15 +16,22 @@
 ---
 
 ## 1. Introduction
-- **Context:** The rise of computer vision in sports analytics and the democratization of biomechanical analysis via smartphones.
-- **The Problem:** Models like YOLO and MediaPipe are trained primarily on standard datasets (COCO) featuring everyday clothing or sportswear. Traditional martial arts uniforms (Gi) present a unique adversarial challenge: the fabric snaps independently of the limb, masking true joint locations (occlusion) and introducing false high-frequency motion.
-- **The Impact:** Without accurate joint tracking, downstream metrics like Center of Gravity (CoG) and velocity profiles become corrupted, rendering the AI useless for serious coaching or injury prevention.
-- **Hypothesis:** We hypothesize that the Gi condition will exhibit significantly higher spatial jitter and confidence volatility compared to the Rashguard condition, specifically around terminal extension phases of strikes.
+The democratization of computer vision has fundamentally transformed sports biomechanics. Traditional motion capture systems, which rely on expensive, multi-camera infrared arrays and reflective markers (e.g., VICON), are increasingly being replaced by markerless AI pose estimation frameworks. Tools such as MediaPipe (BlazePose) and YOLOv8-Pose allow coaches and practitioners to extract kinematic data using standard smartphone video. While these models perform with high accuracy in controlled environments and tight-fitting sportswear, their robustness deteriorates significantly in real-world scenarios involving complex apparel.
+
+Traditional martial arts present a unique adversarial challenge for computer vision models. Practitioners wear a *Gi*—a heavy, loose-fitting cotton uniform designed to snap during terminal extension phases (Kime) of strikes. This fabric motion acts independent of the human anatomical structure, creating severe occlusion of major joints (e.g., elbows and knees) and introducing false high-frequency artifacts into the optical tracking data. When applied without correction, these models track the fabric rather than the underlying bone structure, corrupting critical downstream metrics such as Center of Gravity (CoG), strike velocity, and joint angle approximations.
+
+This study hypothesizes that loose-fitting martial arts apparel introduces statistically significant degradation in both spatial tracking accuracy (jitter) and model confidence compared to tight-fitting athletic wear. By quantifying this degradation across MediaPipe and YOLOv8 architectures, this research aims to highlight the limitations of purely vision-based kinematic analysis in martial arts and establish the necessity for secondary physics-based filtering.
 
 ## 2. Related Work
-- **Pose Estimation Models:** Briefly compare the architecture of YOLOv8-Pose (top-down, 17 keypoints) vs MediaPipe BlazePose (bottom-up/hybrid, 33 landmarks). 
-- **Clothing Occlusion in CV:** Discuss existing literature on how loose clothing degrades bounding box and keypoint detection.
-- **Sports Biomechanics AI:** Review previous applications of AI in martial arts and where they fall short (usually ignoring the clothing variable).
+
+**2.1 Markerless Pose Estimation in Sports**
+Recent advancements in human pose estimation (HPE) have yielded two primary architectural paradigms: top-down approaches, heavily utilized by the YOLO (You Only Look Once) family, and bottom-up/hybrid approaches like MediaPipe BlazePose. Research indicates that MediaPipe excels in single-subject, on-device deployments by generating 33 highly detailed 3D landmarks (including distal extremities), making it popular for form analysis. Conversely, YOLOv8-Pose (typically yielding 17 COCO keypoints) relies on bounding-box localization before keypoint extraction, providing superior robustness in multi-person or noisy environments. Despite their widespread use in sports like swimming and athletics, neither architecture is explicitly trained to handle the unique physics of martial arts uniforms.
+
+**2.2 Clothing Occlusion and Tracking Degradation**
+Clothing occlusion remains one of the most significant unsolved challenges in 2D and 3D pose estimation. Loose garments hide the precise location of underlying joints, forcing models to rely on learned spatial priors that often fail when the fabric itself undergoes dynamic deformation. Recent literature highlights that "motion artifacts" caused by loose fabric lead to severe drops in spatial accuracy. While some studies attempt to mitigate this by generating synthetic datasets with simulated loose clothing or by utilizing Secondary Motion AutoEncoders (SeMo-AE), these solutions are computationally expensive and rarely implemented in edge-based coaching tools.
+
+**2.3 Biomechanics of Martial Arts**
+Existing research into martial arts kinematics heavily relies on physical IMU sensors or expensive marker-based systems to analyze techniques like the *Oizuki* (lunge punch). While a few studies have attempted to apply open-source AI pose estimators to martial arts, they generally assume the AI's output is ground-truth, failing to account for the spatial noise introduced by the Gi. This study bridges the gap by directly benchmarking the AI's degradation caused by the uniform itself, establishing a baseline error metric for future algorithmic corrections.
 
 ## 3. Methodology
 ### 3.1 Experimental Design
