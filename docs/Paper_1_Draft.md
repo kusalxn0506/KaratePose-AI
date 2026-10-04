@@ -1,93 +1,67 @@
-# Comparative Analysis of AI Pose Estimation Degradation Under Clothing Occlusion in Karate Biomechanics
+# Kinematic Refinement of Coordinate-Based Human Pose Estimation: The Impact of Rigid Garment Occlusion (Paper 1 Draft)
 
-**Authors:** Kusal Nirmala (1, 2)
-*(1) BSc (Hons) Artificial Intelligence, University of Plymouth*
-*(2) NSBM Green University*
+**Author:** Kusal Nirmala
+*BSc (Hons) Artificial Intelligence — NSBM Green University / University of Plymouth*
 
 ---
 
 ## Abstract
-**Background:** AI-based pose estimation models (e.g., MediaPipe, YOLOv8) are increasingly used for sports biomechanics. However, their accuracy is heavily compromised by loose-fitting traditional uniforms (e.g., a Karate Gi) which occlude joint landmarks and introduce independent fabric motion.
-**Objective:** This study quantifies the degradation in spatial accuracy, confidence volatility, and joint angle estimation when using standard pose models on subjects wearing a Karate Gi compared to tight-fitting athletic wear.
-**Methods:** Three Karate practitioners executed 10 repetitions of the *Oizuki* (lunge punch) under two conditions: Control (Rashguard) and Experimental (Karate Gi). Video data was processed through MediaPipe BlazePose and YOLOv8-Pose. Metrics including Spatial Jitter (Euclidean pixel displacement), Confidence Volatility, and Joint Angle differentials were extracted. Statistical significance was evaluated using the Wilcoxon signed-rank test and Cohen’s *d* for effect size.
-**Results:** [PLACEHOLDER - Awaiting data collection. E.g., The Gi condition introduced a statistically significant increase in maximum spatial jitter (p < 0.05) and a mean confidence drop of X% across elbow and knee joints].
-**Conclusion:** The findings demonstrate that standard AI pose estimators fail to maintain kinematic stability under severe clothing occlusion, proving the necessity for secondary physics-based filters (e.g., Extended Kalman Filters) to recover true anatomical Center of Gravity (CoG) in traditional martial arts analysis.
+The application of monocular Human Pose Estimation (HPE) in sports biomechanics represents a paradigm shift toward democratized, ubiquitous motion capture. However, lightweight edge-deployable architectures such as MediaPipe Pose and YOLOv8-Pose suffer severe degradation when confronted with the compounding challenges of high-velocity ballistic movements and extreme rigid garment occlusion. This research establishes the first rigorously controlled benchmark quantifying the extent of this tracking degradation by comparing performance under a 14oz canvas Gi against a form-fitting control condition. Utilising a multi-practitioner cohort (N=3), the study employs a within-subject, repeated-measures experimental design. Spatial jitter, confidence volatility, and joint angle error are statistically modelled using non-parametric inference with False Discovery Rate correction.
 
 ---
 
 ## 1. Introduction
-The democratization of computer vision has fundamentally transformed sports biomechanics. Traditional motion capture systems, which rely on expensive, multi-camera infrared arrays and reflective markers (e.g., VICON), are increasingly being replaced by markerless AI pose estimation frameworks. Tools such as MediaPipe (BlazePose) and YOLOv8-Pose allow coaches and practitioners to extract kinematic data using standard smartphone video. While these models perform with high accuracy in controlled environments and tight-fitting sportswear, their robustness deteriorates significantly in real-world scenarios involving complex apparel.
+The evolution of computer vision, particularly in the domain of Human Pose Estimation (HPE), has catalysed profound advancements in sports analytics and biomechanical modeling. The transition from marker-based optoelectronic systems (e.g., Vicon) to markerless, monocular HPE offers unparalleled ecological validity, allowing performance capture outside the constrained laboratory environment. Contemporary lightweight models, notably MediaPipe Pose (BlazePose) and YOLOv8-Pose, provide real-time, edge-capable inference. However, their reliability precipitously declines when subjected to the dual perturbations of high-velocity kinetics and complex garment occlusion. 
 
-Traditional martial arts present a unique adversarial challenge for computer vision models. Practitioners wear a *Gi*—a heavy, loose-fitting cotton uniform designed to snap during terminal extension phases (Kime) of strikes. This fabric motion acts independent of the human anatomical structure, creating severe occlusion of major joints (e.g., elbows and knees) and introducing false high-frequency artifacts into the optical tracking data. When applied without correction, these models track the fabric rather than the underlying bone structure, corrupting critical downstream metrics such as Center of Gravity (CoG), strike velocity, and joint angle approximations.
+The central problem addressed in this research is the failure of these lightweight models under concurrent high-velocity motion and rigid garment occlusion. The Shotokan karate discipline serves as an optimal testbed due to the unique properties of the traditional attire. The 14oz canvas Karate Gi is a heavyweight, high-stiffness garment. Unlike casual wear or winter clothing which drape and conform dynamically to the body's contours, the rigid canvas forms persistent, geometric folds. These folds create sharp edge gradients and false limb boundaries that deceive convolutional and transformer-based feature extractors. 
 
-This study hypothesizes that loose-fitting martial arts apparel introduces statistically significant degradation in both spatial tracking accuracy (jitter) and model confidence compared to tight-fitting athletic wear. By quantifying this degradation across MediaPipe and YOLOv8 architectures, this research aims to highlight the limitations of purely vision-based kinematic analysis in martial arts and establish the necessity for secondary physics-based filtering.
+This compounding effect—where ballistic velocities exceeding 8 m/s intersect with rigid canvas occlusion—precipitates systemic confidence collapse and extreme spatial jitter in pose estimation outputs. The algorithms struggle to differentiate between the true anatomical joint and the structural vertex of a canvas fold.
 
 ## 2. Related Work
+### 2.1 Human Pose Estimation Architectures
+The landscape of HPE is broadly divided into top-down and bottom-up paradigms. MediaPipe Pose (Lugaresi et al., 2019) represents a state-of-the-art top-down pipeline optimised for real-time mobile inference, outputting 33 3D landmarks. Conversely, YOLOv8-Pose (Jocher et al., 2023) is a single-stage, anchor-free model predicting 17 COCO keypoints simultaneously, offering superior multi-person handling. Both architectures prioritise speed over absolute precision, making them susceptible to occlusion-induced jitter.
 
-**2.1 Markerless Pose Estimation in Sports**
-Recent advancements in human pose estimation (HPE) have yielded two primary architectural paradigms: top-down approaches, heavily utilized by the YOLO (You Only Look Once) family, and bottom-up/hybrid approaches like MediaPipe BlazePose. Research indicates that MediaPipe excels in single-subject, on-device deployments by generating 33 highly detailed 3D landmarks (including distal extremities), making it popular for form analysis. Conversely, YOLOv8-Pose (typically yielding 17 COCO keypoints) relies on bounding-box localization before keypoint extraction, providing superior robustness in multi-person or noisy environments. Despite their widespread use in sports like swimming and athletics, neither architecture is explicitly trained to handle the unique physics of martial arts uniforms.
+### 2.2 Computer Vision in Martial Arts
+The application of CV in martial arts has seen growing interest (Echeverria & Santos, 2021; Lu, 2022). Recently, Dael et al. (2026) conducted comparative evaluations of MediaPipe and YOLOv8 across various dynamic activities. However, a critical gap pervades this literature: these studies operate under the implicit assumption of standard clothing, failing to isolate the specific degradation caused by martial arts attire.
 
-**2.2 Clothing Occlusion and Tracking Degradation**
-Clothing occlusion remains one of the most significant unsolved challenges in 2D and 3D pose estimation. Loose garments hide the precise location of underlying joints, forcing models to rely on learned spatial priors that often fail when the fabric itself undergoes dynamic deformation. Recent literature highlights that "motion artifacts" caused by loose fabric lead to severe drops in spatial accuracy. While some studies attempt to mitigate this by generating synthetic datasets with simulated loose clothing or by utilizing Secondary Motion AutoEncoders (SeMo-AE), these solutions are computationally expensive and rarely implemented in edge-based coaching tools.
-
-**2.3 Biomechanics of Martial Arts**
-Existing research into martial arts kinematics heavily relies on physical IMU sensors or expensive marker-based systems to analyze techniques like the *Oizuki* (lunge punch). While a few studies have attempted to apply open-source AI pose estimators to martial arts, they generally assume the AI's output is ground-truth, failing to account for the spatial noise introduced by the Gi. This study bridges the gap by directly benchmarking the AI's degradation caused by the uniform itself, establishing a baseline error metric for future algorithmic corrections.
+### 2.3 Clothing-Induced Occlusion in Pose Estimation
+The specific impact of clothing on HPE has only recently garnered rigorous attention. Yamaguchi and colleagues (2022, 2023) quantified degradation under loose-fitting clothes, finding error inflations of 30-150%. A vital distinction, however, separates loose/draping fabrics from rigid canvas. The 14oz Karate Gi behaves distinctly, creating persistent false limb boundaries that remain completely uncharacterized in current benchmarking literature.
 
 ## 3. Methodology
-### 3.1 Experimental Design
-- **Participants:** N=3 experienced Karate practitioners.
-- **Protocol:** Each participant performs 10 repetitions of *Oizuki* (lunge punch) in a tight Rashguard (Set A) and then in a traditional heavy-cotton Gi (Set B). 
-- **Camera Setup:** Static tripod, 60fps, 1080p, lateral/frontal angles.
+### 3.1 Research Philosophy & Design
+The research adopts a positivist paradigm, employing a quantitative, experimental methodology. The core structure is a within-subject paired comparison across two controlled states: Set A (Control - Compression + Markers) and Set B (Experimental - 14oz Canvas Gi), replicated across a multi-practitioner cohort (N=3) with skill-level stratification.
 
-### 3.2 Computational Pipeline
-- **Extraction:** Videos decomposed into frames.
-- **Inference Engine:** Frames passed simultaneously to YOLOv8-Pose and MediaPipe.
-- **Data Aggregation:** Repetitions segmented to prevent pseudoreplication.
+### 3.2 Data Collection Protocol
+A strict 4-phase audio-cued execution protocol is enforced using a 60 BPM metronome.
+- **Selected Techniques:** Oi-zuki (Lunge Punch), Gedan-barai (Downward Block), Stance Transition.
+- **Volume:** 3 techniques × 10 repetitions × 2 conditions × 3 practitioners = 180 primary execution trials.
+- **Counterbalancing:** Condition order is counterbalanced across sessions, with mandatory 5–10 minute rest periods to mitigate cumulative fatigue.
 
-### 3.3 Metrics & Mathematical Formulation
-Define the three core metrics we built in the pipeline:
-1. **Spatial Jitter:** Euclidean distance between joint $j$ in frame $t$ and frame $t-1$.
-   $$ J_{j, t} = \sqrt{(x_{j, t} - x_{j, t-1})^2 + (y_{j, t} - y_{j, t-1})^2} $$
-2. **Confidence Volatility:** The variance in the model's self-reported confidence score across the repetition window.
-3. **Joint Angle Tracking:** Angle $\theta$ at the elbow/knee computed via dot product of adjacent vectors.
+### 3.3 Data Processing & Degradation Metrics
+Inference is executed strictly on a per-frame basis, explicitly disabling internal multi-frame temporal smoothing.
+1. **Spatial Jitter ($J_t$):** Measures the erratic inter-frame displacement of a specific joint.
+2. **Confidence Score Volatility ($V_c$):** Quantifies the instability of the network's predictive certainty.
+3. **Joint Angle Error:** Anatomical joint angles providing a biomechanically relevant measure of structural degradation.
+
+All metrics are aggregated per repetition to prevent pseudoreplication, yielding $N=30$ paired observations per technique/condition combination.
 
 ### 3.4 Statistical Analysis
-- Shapiro-Wilk test to check for normality (justifying non-parametric tests).
-- Wilcoxon signed-rank test for paired comparisons (Rashguard vs. Gi per participant).
-- Cohen's *d* to measure the effect size of the degradation.
+- **Wilcoxon Signed-Rank Test:** Two-tailed, paired, non-parametric comparison of aggregated metrics between Set A and Set B.
+- **Linear Mixed-Effects Model (LMM):** Fitted with garment condition as a fixed effect and practitioner as a random intercept.
+- **Effect Size:** Matched-pairs rank-biserial correlation ($r_{rb}$).
+- **FDR Correction:** Benjamini-Hochberg False Discovery Rate controlled at $q = 0.05$.
 
 ---
 
 ## 4. Results
-*(This section will be populated once the 1-2 month data collection is complete)*
-
-### 4.1 Impact on Spatial Jitter
-- **[Insert Figure 1: Spatial Jitter Comparison (MediaPipe vs YOLOv8)]**
-- *Draft text:* The Gi condition resulted in massive spikes in spatial jitter, particularly during the "snap" phase (Kime) of the punch. MediaPipe showed a jitter increase of X%, while YOLOv8 showed Y%.
-
-### 4.2 Impact on Model Confidence
-- **[Insert Figure 2: Confidence Volatility Boxplots]**
-- *Draft text:* YOLOv8 confidence scores plummeted by X% when the elbow joint was occluded by the Gi sleeve. 
-
-### 4.3 Joint Angle Distortion
-- **[Insert Figure 3: Joint Angle Time-Series Overlay]**
-- *Draft text:* The true biomechanical angle of the elbow was distorted by the fabric fold, causing the AI to report a false hyperextension of X degrees.
-
-### 4.4 Statistical Significance
-- **[Insert Table 1: Wilcoxon Test Results and Cohen's d values]**
-
----
+*(Awaiting 1-2 Month Data Collection)*
+- **Figure 1:** Spatial Jitter Comparison (MediaPipe vs YOLOv8)
+- **Figure 2:** Confidence Volatility Boxplots
+- **Figure 3:** Joint Angle Time-Series Overlay
+- **Table 1:** Wilcoxon Test Results and Effect Sizes
 
 ## 5. Discussion
-- **Interpretation of Findings:** Why did the models fail? (Lack of temporal awareness, training data bias).
-- **YOLOv8 vs MediaPipe:** Which model handled the occlusion better and why? (MediaPipe's 33 points might offer better kinematic priors, or YOLO's top-down approach might be more robust to missing limbs).
-- **The "Kime" Problem:** Discuss how the snapping of the Gi specifically tricks the optical flow/keypoint trackers into tracking the fabric instead of the wrist.
+*(To be drafted post data-collection)*
 
-## 6. Conclusion & Future Work (Bridge to Paper 2)
-- Summarize that off-the-shelf AI models are insufficient for accurate Karate biomechanics due to clothing occlusion.
-- **The Bridge:** Propose the solution for Paper 2 — implementing an **Extended Kalman Filter (EKF)** with physical kinematic constraints (a "physics police") to smooth the jitter, ignore the fabric snap, and accurately recover the true Center of Gravity (CoG).
-
----
-
-## References
-*(To be populated with citations for MediaPipe, YOLOv8, and relevant biomechanics papers)*
+## 6. Conclusion
+*(To be drafted post data-collection. Will bridge to Paper 2 - Event-Triggered Kinematic Filter)*
