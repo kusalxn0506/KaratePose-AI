@@ -38,18 +38,36 @@ A strict 4-phase audio-cued execution protocol is enforced using a 60 BPM metron
 - **Counterbalancing:** Condition order is counterbalanced across sessions, with mandatory 5–10 minute rest periods to mitigate cumulative fatigue.
 
 ### 3.3 Data Processing & Degradation Metrics
-Inference is executed strictly on a per-frame basis, explicitly disabling internal multi-frame temporal smoothing.
-1. **Spatial Jitter ($J_t$):** Measures the erratic inter-frame displacement of a specific joint.
-2. **Confidence Score Volatility ($V_c$):** Quantifies the instability of the network's predictive certainty.
-3. **Joint Angle Error:** Anatomical joint angles providing a biomechanically relevant measure of structural degradation.
+Inference is executed strictly on a per-frame basis, explicitly disabling internal multi-frame temporal smoothing. The degradation of the coordinate tracking is quantified via the following formal metrics:
+
+**1. Spatial Jitter ($J_t$):** 
+Measures the erratic inter-frame displacement of a specific anatomical joint $j$ at time $t$. Given coordinates $(x,y)$, jitter is defined as the Euclidean distance between consecutive frames:
+$$ J_t^{(j)} = \sqrt{\left(x_t^{(j)} - x_{t-1}^{(j)}\right)^2 + \left(y_t^{(j)} - y_{t-1}^{(j)}\right)^2} $$
+
+**2. Confidence Score Volatility ($V_c$):** 
+Quantifies the instability of the neural network's predictive certainty. For a sequence of $M$ frames and confidence score $c \in [0,1]$:
+$$ V_c^{(j)} = \frac{1}{M-1} \sum_{t=2}^{M} \left| c_t^{(j)} - c_{t-1}^{(j)} \right| $$
+
+**3. Joint Angle Error:** 
+Anatomical joint angles (e.g., knee flexion $\theta_k$) are computed via the dot product of adjacent segmental vectors ($\vec{u}, \vec{v}$) to provide a biomechanically relevant measure of structural degradation robust to global translation:
+$$ \theta_k = \arccos\left( \frac{\vec{u} \cdot \vec{v}}{\|\vec{u}\| \|\vec{v}\|} \right) $$
 
 All metrics are aggregated per repetition to prevent pseudoreplication, yielding $N=30$ paired observations per technique/condition combination.
 
 ### 3.4 Statistical Analysis
-- **Wilcoxon Signed-Rank Test:** Two-tailed, paired, non-parametric comparison of aggregated metrics between Set A and Set B.
-- **Linear Mixed-Effects Model (LMM):** Fitted with garment condition as a fixed effect and practitioner as a random intercept.
-- **Effect Size:** Matched-pairs rank-biserial correlation ($r_{rb}$).
-- **FDR Correction:** Benjamini-Hochberg False Discovery Rate controlled at $q = 0.05$.
+To rigorously evaluate the degradation, the analysis employs a multi-tiered statistical framework:
+
+**1. Within-Subject Inference:**
+A two-tailed Wilcoxon Signed-Rank Test is utilized for paired, non-parametric comparison of aggregated metrics between Set A and Set B. The effect size is quantified using the matched-pairs rank-biserial correlation ($r_{rb}$):
+$$ r_{rb} = \frac{W_+ - W_-}{W_+ + W_-} $$
+
+**2. Pooled Analysis (Linear Mixed-Effects Model):**
+A Linear Mixed-Effects Model (LMM) is fitted to account for the nested structure of repetitions within practitioners, estimating the global garment effect:
+$$ Y_{ijk} = \beta_0 + \beta_1 \cdot \text{Condition}_{j} + u_i + \varepsilon_{ijk} $$
+where $u_i \sim \mathcal{N}(0, \sigma_u^2)$ represents the random practitioner intercept and $\varepsilon_{ijk}$ is the residual error.
+
+**3. Type I Error Control:**
+To control for family-wise error inflation across parallel joint tests, the Benjamini-Hochberg False Discovery Rate (FDR) procedure is applied, controlling $q \le 0.05$.
 
 ---
 
