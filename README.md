@@ -1,37 +1,46 @@
 # 🥋 KaratePose-AI
 
-**BSc (Hons) Research Project — Comparative Analysis of AI Pose Estimation for Karate Biomechanics**
+**BSc (Hons) Research Project — Kinematic Refinement of Human Pose Estimation via a Physics-Informed Filter Engine for Elite Martial Arts Analytics**
 
-> Investigating how traditional Karate uniforms (Gi) affect the accuracy of AI-based
-> pose estimation models, comparing **MediaPipe BlazePose** (33 landmarks) vs
-> **YOLOv8-Pose** (17 COCO keypoints).
+> Investigating how rigid 14oz traditional Karate uniforms (Gi) degrade lightweight
+> monocular pose estimation (**MediaPipe BlazePose** & **YOLOv8-Pose**), and introducing an
+> **Event-Triggered Kinematic Extended Kalman Filter (EKF)** with Newtonian momentum projection
+> and **de Leva (1996) Center of Gravity (CoG)** tracking to restore biomechanical fidelity.
 
 ---
 
-## 📋 Project Overview
+## 📋 Research Framework (Two-Phase Architecture)
 
-This research quantifies the **degradation in pose estimation accuracy** caused by
-loose-fitting clothing (Karate Gi) compared to tight-fitting sportswear (rashguard).
+This research is structured into two distinct, decoupled phases corresponding to two academic papers:
 
-### Research Design
-| | Set A (Control) | Set B (Experimental) |
-|---|---|---|
-| **Clothing** | Rashguard (tight-fit) | Karate Gi (loose-fit) |
-| **Technique** | Oizuki (lunge punch) | Oizuki (lunge punch) |
-| **Repetitions** | 10 per participant | 10 per participant |
-| **Participants** | N = 3 practitioners | N = 3 practitioners |
+```
+                      Raw Video Capture (Set A: Rashguard vs Set B: 14oz Gi)
+                                                │
+                                                ▼
+                                    01_frame_extractor.py
+                                    02_pose_inference.py
+                                                │
+                       ┌────────────────────────┴────────────────────────┐
+                       ▼                                                 ▼
+        [ PHASE 1: Paper 1 — The Problem ]              [ PHASE 2: Paper 2 — The Solution ]
+        03_metrics.py (Jitter, Volatility, Angles)      07_ekf_filter.py (Event-Triggered EKF)
+        04_aggregator.py (Anti-pseudoreplication)       09_cog_tracker.py (De Leva CoG Tracking)
+        05_statistics.py (Wilcoxon, LMM, FDR)           10_filter_benchmark.py (MPJPE, PCK@0.2)
+        08_visualiser.py (Paper 1 Figures)              Phase 2 Visualisation & Evaluation
+```
 
-### Metrics Computed
-- **Spatial Jitter** — frame-to-frame Euclidean displacement of landmarks
-- **Confidence Volatility** — stability of detection confidence scores
-- **Joint Angles** — anatomical angles via dot product / arccos
+### Phase 1: Benchmark & Degradation Quantification (Paper 1)
+- **Controlled Independent Variable:** Tight compression wear (Set A) vs. 14oz rigid canvas Karate Gi (Set B).
+- **Cohort:** Multi-practitioner ($N=3$), stratified by skill level (1st Dan to 4th Dan, including Asian Championship winner).
+- **Degradation Metrics:** Spatial Jitter ($J_t$), Confidence Volatility ($V_c$), and anatomical Joint Angles.
+- **Statistical Rigour:** Per-repetition aggregation to eliminate pseudoreplication, non-parametric Wilcoxon signed-rank tests, Benjamini-Hochberg FDR correction ($q=0.05$), and Linear Mixed-Effects Models (LMM).
 
-### Statistical Tests
-- Shapiro-Wilk normality test
-- Wilcoxon signed-rank test (non-parametric)
-- Paired t-test (parametric) with Cohen's d
-- Benjamini-Hochberg FDR correction
-- Linear Mixed-Effects Model (pooled analysis)
+### Phase 2: Physics-Informed Filter Engine & Biomechanics (Paper 2)
+- **Event-Triggered Kinematic EKF:** 6-state constant-acceleration Newtonian model ($[x, y, \dot{x}, \dot{y}, \ddot{x}, \ddot{y}]^T$) operating at 60 FPS ($\Delta t = 1/60\text{s}$).
+- **Confidence-Gated Measurement Update:** Dynamic scaling of measurement noise covariance:
+  $$R_t = \sigma_0^2 \cdot \exp\bigl(\gamma(1 - c_t)\bigr) \cdot I_2$$
+- **Momentum Projection with Adaptive Damping:** Predict-only trajectory coasting through occlusion gaps with adaptive deceleration, mitigating drift during extended folds while preserving genuine ballistic impulse (*Kime*).
+- **Segmental Center of Gravity Engine:** Synthesis of filtered coordinates with de Leva's (1996) 14-segment mass distribution parameters and dynamic stance depth tracking.
 
 ---
 
@@ -40,20 +49,43 @@ loose-fitting clothing (Karate Gi) compared to tight-fitting sportswear (rashgua
 ```
 Karate Pose AI/
 ├── src/                        # Source code modules
-│   ├── config.py               # Central configuration (paths, joints, settings)
-│   ├── 01_frame_extractor.py   # Video → frames extraction
-│   ├── 02_pose_inference.py    # MediaPipe + YOLOv8 pose detection
-│   ├── 03_metrics.py           # Jitter, confidence, joint angle calculations
+│   ├── config.py               # Central configuration (paths, joints, EKF params, de Leva weights)
+│   │
+│   │   # ── SHARED FOUNDATION ────────────────────────────
+│   ├── 01_frame_extractor.py   # Video → frame extraction with metadata validation
+│   ├── 02_pose_inference.py    # MediaPipe Tasks API + YOLOv8x-Pose inference
+│   │
+│   │   # ── PHASE 1 (Paper 1: The Degradation Problem) ───
+│   ├── 03_metrics.py           # Spatial jitter, confidence volatility, joint angles
 │   ├── 04_aggregator.py        # Frame → repetition aggregation (anti-pseudoreplication)
-│   ├── 05_statistics.py        # Inferential statistical tests
-│   ├── 06_video_overlay.py     # Side-by-side skeleton visualisation
-│   └── 08_visualiser.py        # Publication-ready plot generation
+│   ├── 05_statistics.py        # Wilcoxon, paired t-test, LMM, FDR correction
+│   ├── 06_video_overlay.py     # Side-by-side skeleton visualizer
+│   ├── 08_visualiser.py        # Publication-ready plots for Paper 1
+│   │
+│   │   # ── PHASE 2 (Paper 2: The EKF & CoG Solution) ────
+│   ├── 07_ekf_filter.py        # Event-triggered kinematic EKF (4 modes + ablation toggles)
+│   ├── 09_cog_tracker.py       # De Leva (1996) biomechanical CoG & stance depth engine
+│   └── 10_filter_benchmark.py  # MPJPE, PCK@0.2, phase lag, & velocity preservation benchmark
 │
 ├── data/
-│   └── sample/                 # Sample test videos
-│       └── test_oizuki.mp4     # Sample Oizuki punch video
+│   ├── landmarks/              # Intermediate pose detection CSVs
+│   ├── raw/                    # Real experimental recordings (Set A / Set B / Calibration)
+│   └── sample/                 # Sample test videos (e.g. test_oizuki.mp4)
 │
-├── run_pipeline.py             # Main CLI pipeline runner
+├── docs/
+│   ├── Phase_2_Plan.md         # Comprehensive Phase 2 architecture & roadmap
+│   ├── Paper_1_Draft.md        # Manuscript 1 draft
+│   ├── Video_Recording_Guide.md# Protocol for 4K 60FPS / 240FPS video capture
+│   └── protocol/               # Printable & digital data collection sheets
+│
+├── output/
+│   ├── filtered/               # EKF filtered coordinates & diagnostics CSVs
+│   ├── cog/                    # Center of Gravity & stance trajectories
+│   ├── metrics/                # Jitter & volatility CSVs
+│   ├── statistics/             # Inferential test results
+│   └── plots/                  # Publication figures
+│
+├── run_pipeline.py             # Main CLI orchestrator
 ├── run_demo.py                 # Quick demo with synthetic data
 ├── requirements.txt            # Python dependencies
 └── .gitignore
@@ -90,16 +122,26 @@ curl -L -o pose_landmarker_heavy.task \
 ```
 
 ### Run
+
+#### Phase 1: Pose Inference & Degradation Metrics
 ```bash
-# Run the full pipeline on the sample video
+# Run the full Phase 1 pipeline on the sample video
 python run_pipeline.py --sample
 
-# Or run individual steps
+# Or run individual Phase 1 steps
+python run_pipeline.py --step extract --sample
 python run_pipeline.py --step inference --sample
 python run_pipeline.py --step metrics --sample
+python run_pipeline.py --step aggregate --sample
 
 # Watch the skeleton overlay
 python -m src.06_video_overlay
+```
+
+#### Phase 2: Event-Triggered Kinematic EKF
+```bash
+# Run all 4 filter modes (Raw, SKF, Linear Interp, EKF) on extracted landmarks
+python -m src.07_ekf_filter
 ```
 
 ---
