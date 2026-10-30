@@ -43,6 +43,7 @@ PATHS = {
     "filtered":         PROJECT_ROOT / "output" / "filtered",      # EKF-filtered coordinates
     "cog":              PROJECT_ROOT / "output" / "cog",           # Center of Gravity data
     "plots":            PROJECT_ROOT / "output" / "plots",         # Generated figures
+    "benchmark":        PROJECT_ROOT / "output" / "benchmark",     # Filter comparison results (Phase 2)
 }
 
 
@@ -247,6 +248,12 @@ EKF_CONFIG = {
     "gamma":                5.0,    # γ: scaling factor for dynamic R_t
     "sigma_0":              0.01,   # σ₀²: base measurement noise variance
     "dt":                   1/60,   # Δt: time between frames (1/60 seconds at 60 FPS)
+    "sigma_a":              75.0,   # σ_a: process noise acceleration std for Q matrix
+                                    # Controls how agile we expect joint motion to be.
+                                    # Tuned on synthetic punch trajectories:
+                                    #   - Must be high enough to track ballistic Kime (~1.2 m/s)
+                                    #   - Too high → filter follows noise; too low → lags behind strikes
+                                    # Validated range: 10–150. Optimal: 75 (see validation tests).
 }
 
 
@@ -309,4 +316,5 @@ PLOT_CONFIG = {
 #   §6.5   Statistics    →   STATS_CONFIG
 #   §6.6   EKF Filter   →   EKF_CONFIG
 #   §6.6.4 CoG Model    →   DE_LEVA_WEIGHTS
+#   §6.6.5 Benchmark    →   PATHS["benchmark"]
 # =============================================================================

@@ -1,9 +1,26 @@
-session_id,take_id,practitioner_id,garment_condition,technique,rep_number,camera_fps,resolution,shutter_speed,lighting_lux,file_name,notes
-S01,T01,P01,Set_A_Control,Oi-zuki,1-10,60,4K_3840x2160,1/500s,550,SETA_OIZUKI_T01_60FPS.mov,Form-fitting black compression with joint markers
-S01,T02,P01,Set_A_Control,Gedan-barai,1-10,60,4K_3840x2160,1/500s,550,SETA_GEDAN_T01_60FPS.mov,Form-fitting black compression with joint markers
-S01,T03,P01,Set_A_Control,Zenkutsu_to_Kiba,1-10,60,4K_3840x2160,1/500s,550,SETA_STANCE_T01_60FPS.mov,Form-fitting black compression with joint markers
-S01,T04,P01,Set_B_Experimental,Oi-zuki,1-10,60,4K_3840x2160,1/500s,550,SETB_OIZUKI_T01_60FPS.mov,14oz heavyweight canvas Karate Gi
-S01,T05,P01,Set_B_Experimental,Gedan-barai,1-10,60,4K_3840x2160,1/500s,550,SETB_GEDAN_T01_60FPS.mov,14oz heavyweight canvas Karate Gi
-S01,T06,P01,Set_B_Experimental,Zenkutsu_to_Kiba,1-10,60,4K_3840x2160,1/500s,550,SETB_STANCE_T01_60FPS.mov,14oz heavyweight canvas Karate Gi
-S01,T07,P01,Set_A_Control,Oi-zuki,1-5,240,1080p_1920x1080,Auto_HFR,550,SETA_OIZUKI_T02_240FPS.mov,High-speed ground truth validation subsample
-S01,T08,P01,Set_B_Experimental,Oi-zuki,1-5,240,1080p_1920x1080,Auto_HFR,550,SETB_OIZUKI_T02_240FPS.mov,High-speed occluded validation subsample
+session_id,take_id,practitioner_id,garment_condition,technique,rep_range,camera_fps,resolution,shutter_speed,lighting_lux,file_name,date,time_recorded,status,notes
+S00,CALIB,—,—,Calibration Rod (1.00m),—,60,4K_3840x2160,1/500s,,CALIB_[DATE]_1m_rod.mov,,,,Record once before first session. Do not move tripod after this.
+S01,T01,P01,Set_A_Control,Oi-zuki,1-10,60,4K_3840x2160,1/500s,,SETA_OIZUKI_P01_T01_60FPS.mov,,,,
+S01,T02,P01,Set_A_Control,Gedan-barai,1-10,60,4K_3840x2160,1/500s,,SETA_GEDAN_P01_T01_60FPS.mov,,,,
+S01,T03,P01,Set_A_Control,Zenkutsu_to_Kiba,1-10,60,4K_3840x2160,1/500s,,SETA_STANCE_P01_T01_60FPS.mov,,,,
+S01,T04,P01,Set_B_Experimental,Oi-zuki,1-10,60,4K_3840x2160,1/500s,,SETB_OIZUKI_P01_T01_60FPS.mov,,,,
+S01,T05,P01,Set_B_Experimental,Gedan-barai,1-10,60,4K_3840x2160,1/500s,,SETB_GEDAN_P01_T01_60FPS.mov,,,,
+S01,T06,P01,Set_B_Experimental,Zenkutsu_to_Kiba,1-10,60,4K_3840x2160,1/500s,,SETB_STANCE_P01_T01_60FPS.mov,,,,
+S01,T07,P01,Set_A_Control,Oi-zuki (Slo-Mo),1-5,240,1080p_1920x1080,Auto_HFR,,SETA_OIZUKI_P01_T02_240FPS.mov,,,,High-speed ground truth validation
+S01,T08,P01,Set_B_Experimental,Oi-zuki (Slo-Mo),1-5,240,1080p_1920x1080,Auto_HFR,,SETB_OIZUKI_P01_T02_240FPS.mov,,,,High-speed occluded validation
+S02,T01,P02,Set_A_Control,Oi-zuki,1-10,60,4K_3840x2160,1/500s,,SETA_OIZUKI_P02_T01_60FPS.mov,,,,
+S02,T02,P02,Set_A_Control,Gedan-barai,1-10,60,4K_3840x2160,1/500s,,SETA_GEDAN_P02_T01_60FPS.mov,,,,
+S02,T03,P02,Set_A_Control,Zenkutsu_to_Kiba,1-10,60,4K_3840x2160,1/500s,,SETA_STANCE_P02_T01_60FPS.mov,,,,
+S02,T04,P02,Set_B_Experimental,Oi-zuki,1-10,60,4K_3840x2160,1/500s,,SETB_OIZUKI_P02_T01_60FPS.mov,,,,
+S02,T05,P02,Set_B_Experimental,Gedan-barai,1-10,60,4K_3840x2160,1/500s,,SETB_GEDAN_P02_T01_60FPS.mov,,,,
+S02,T06,P02,Set_B_Experimental,Zenkutsu_to_Kiba,1-10,60,4K_3840x2160,1/500s,,SETB_STANCE_P02_T01_60FPS.mov,,,,
+S02,T07,P02,Set_A_Control,Oi-zuki (Slo-Mo),1-5,240,1080p_1920x1080,Auto_HFR,,SETA_OIZUKI_P02_T02_240FPS.mov,,,,High-speed ground truth validation
+S02,T08,P02,Set_B_Experimental,Oi-zuki (Slo-Mo),1-5,240,1080p_1920x1080,Auto_HFR,,SETB_OIZUKI_P02_T02_240FPS.mov,,,,High-speed occluded validation
+S03,T01,P03,Set_A_Control,Oi-zuki,1-10,60,4K_3840x2160,1/500s,,SETA_OIZUKI_P03_T01_60FPS.mov,,,,
+S03,T02,P03,Set_A_Control,Gedan-barai,1-10,60,4K_3840x2160,1/500s,,SETA_GEDAN_P03_T01_60FPS.mov,,,,
+S03,T03,P03,Set_A_Control,Zenkutsu_to_Kiba,1-10,60,4K_3840x2160,1/500s,,SETA_STANCE_P03_T01_60FPS.mov,,,,
+S03,T04,P03,Set_B_Experimental,Oi-zuki,1-10,60,4K_3840x2160,1/500s,,SETB_OIZUKI_P03_T01_60FPS.mov,,,,
+S03,T05,P03,Set_B_Experimental,Gedan-barai,1-10,60,4K_3840x2160,1/500s,,SETB_GEDAN_P03_T01_60FPS.mov,,,,
+S03,T06,P03,Set_B_Experimental,Zenkutsu_to_Kiba,1-10,60,4K_3840x2160,1/500s,,SETB_STANCE_P03_T01_60FPS.mov,,,,
+S03,T07,P03,Set_A_Control,Oi-zuki (Slo-Mo),1-5,240,1080p_1920x1080,Auto_HFR,,SETA_OIZUKI_P03_T02_240FPS.mov,,,,High-speed ground truth validation
+S03,T08,P03,Set_B_Experimental,Oi-zuki (Slo-Mo),1-5,240,1080p_1920x1080,Auto_HFR,,SETB_OIZUKI_P03_T02_240FPS.mov,,,,High-speed occluded validation
