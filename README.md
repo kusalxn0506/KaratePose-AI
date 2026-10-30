@@ -13,7 +13,7 @@
 
 This research is structured into two distinct, decoupled phases corresponding to two academic papers:
 
-```
+```text
                       Raw Video Capture (Set A: Rashguard vs Set B: 14oz Gi)
                                                 │
                                                 ▼
@@ -27,6 +27,49 @@ This research is structured into two distinct, decoupled phases corresponding to
         04_aggregator.py (Anti-pseudoreplication)       09_cog_tracker.py (De Leva CoG Tracking)
         05_statistics.py (Wilcoxon, LMM, FDR)           10_filter_benchmark.py (MPJPE, PCK@0.2)
         08_visualiser.py (Paper 1 Figures)              Phase 2 Visualisation & Evaluation
+```
+
+```mermaid
+flowchart TD
+    subgraph Capture["1. Data Capture & Video Corpus"]
+        direction TB
+        A1["Set A: Control (Form-Fitting Rashguard + Markers)"]
+        A2["Set B: Experimental (14oz Rigid Canvas Karate Gi)"]
+        A1 & A2 --> A["Dual-Stream Video Pipeline (4K 60FPS Primary / 240FPS High-Speed)"]
+    end
+
+    subgraph Foundation["2. Shared Foundation (Pre-Processing)"]
+        A --> B["01_frame_extractor.py (Frame extraction & metadata verification)"]
+        B --> C["02_pose_inference.py (MediaPipe BlazePose & YOLOv8x-Pose)"]
+        C --> D[("Intermediate Landmarks CSV\n[frame, joint_idx, joint_name, x, y, z, confidence, model]")]
+    end
+
+    D --> E1
+    D --> F1
+
+    subgraph P1["PHASE 1: Paper 1 — Degradation Analysis (The Problem)"]
+        direction TB
+        E1["03_metrics.py\n• Spatial Jitter (J_t)\n• Confidence Volatility (V_c)\n• Anatomical Joint Angles"]
+        E2["04_aggregator.py\n• Per-Repetition Aggregation\n• Anti-Pseudoreplication Fix"]
+        E3["05_statistics.py\n• Wilcoxon Signed-Rank Tests\n• Benjamini-Hochberg FDR Correction\n• Linear Mixed-Effects Model (LMM)"]
+        E4["08_visualiser.py\n• Publication Figures & Heatmaps"]
+        
+        E1 --> E2 --> E3 --> E4
+    end
+
+    subgraph P2["PHASE 2: Paper 2 — Kinematic Refinement & CoG (The Solution)"]
+        direction TB
+        F1["07_ekf_filter.py\n• Event-Triggered Kinematic EKF\n• Confidence-Gated Dynamic R_t\n• Adaptive Damped Momentum Coasting"]
+        F2["09_cog_tracker.py\n• De Leva (1996) 14-Segment Model\n• Stance Depth Tracking (D_stance)"]
+        F3["10_filter_benchmark.py\n• MPJPE & PCK@0.2 vs Set A GT\n• Peak Velocity (Kime) Preservation\n• Cross-Correlation Phase Lag"]
+
+        F1 --> F2 --> F3
+    end
+
+    style Capture fill:#263238,stroke:#455A64,stroke-width:1.5px,color:#ECEFF1
+    style Foundation fill:#37474F,stroke:#607D8B,stroke-width:1.5px,color:#ECEFF1
+    style P1 fill:#0D47A1,stroke:#1E88E5,stroke-width:1.5px,color:#FFFFFF
+    style P2 fill:#1B5E20,stroke:#43A047,stroke-width:1.5px,color:#FFFFFF
 ```
 
 ### Phase 1: Benchmark & Degradation Quantification (Paper 1)
