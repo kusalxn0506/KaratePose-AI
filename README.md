@@ -116,11 +116,12 @@ Karate Pose AI/
 ├── output/
 │   ├── filtered/               # EKF filtered coordinates & diagnostics CSVs
 │   ├── cog/                    # Center of Gravity & stance trajectories
+│   ├── benchmark/              # Filter comparison results (MPJPE, PCK, phase lag)
 │   ├── metrics/                # Jitter & volatility CSVs
 │   ├── statistics/             # Inferential test results
 │   └── plots/                  # Publication figures
 │
-├── run_pipeline.py             # Main CLI orchestrator
+├── run_pipeline.py             # Main CLI orchestrator (--phase 1 / --phase 2)
 ├── run_demo.py                 # Quick demo with synthetic data
 ├── requirements.txt            # Python dependencies
 └── .gitignore
@@ -173,10 +174,22 @@ python run_pipeline.py --step aggregate --sample
 python -m src.06_video_overlay
 ```
 
-#### Phase 2: Event-Triggered Kinematic EKF
+#### Phase 2: Event-Triggered Kinematic EKF & CoG
 ```bash
-# Run all 4 filter modes (Raw, SKF, Linear Interp, EKF) on extracted landmarks
-python -m src.07_ekf_filter
+# Run the full Phase 2 pipeline (filter → CoG → benchmark)
+python run_pipeline.py --phase 2
+
+# Or run individual Phase 2 steps
+python run_pipeline.py --phase 2 --step filter      # All 4 filter modes on landmarks
+python run_pipeline.py --phase 2 --step cog          # De Leva CoG from filtered output
+python run_pipeline.py --phase 2 --step benchmark    # MPJPE, PCK@0.2, phase lag comparison
+
+# With calibration scale for stance depth in metres
+python run_pipeline.py --phase 2 --step cog --scale 1920
+
+# Or run modules standalone
+python -m src.07_ekf_filter                          # EKF standalone test
+python -m src.09_cog_tracker                         # CoG standalone batch
 ```
 
 ---

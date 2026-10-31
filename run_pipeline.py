@@ -6,7 +6,7 @@
 #   Run this file to execute the full analysis from video → results.
 #
 #   Usage:
-#     python run_pipeline.py                     # Run full Phase A pipeline
+#     python run_pipeline.py                     # Run full Phase 1 pipeline
 #     python run_pipeline.py --step extract      # Run only frame extraction
 #     python run_pipeline.py --step inference     # Run only pose inference
 #     python run_pipeline.py --step metrics       # Run only metrics computation
@@ -15,17 +15,24 @@
 #     python run_pipeline.py --step visualise     # Run only plot generation
 #     python run_pipeline.py --sample             # Run on sample/test data
 #
-# RESEARCH NOTE:
-#   This pipeline implements the full Phase A (Paper 1) methodology:
-#   Video → Frames → Pose Extraction → Metrics → Aggregation → Statistics → Plots
+#     python run_pipeline.py --phase 2            # Run full Phase 2 pipeline
+#     python run_pipeline.py --phase 2 --step filter    # EKF filtering only
+#     python run_pipeline.py --phase 2 --step cog       # CoG tracking only
+#     python run_pipeline.py --phase 2 --step benchmark # Filter comparison only
 #
 # HOW IT CONNECTS:
-#   01_frame_extractor  → extracts frames from video files
-#   02_pose_inference   → runs MediaPipe + YOLOv8 on frames
-#   03_metrics          → computes jitter, confidence volatility, joint angles
-#   04_aggregator       → aggregates per-repetition (anti-pseudoreplication)
-#   05_statistics       → runs Wilcoxon, LMM, FDR correction
-#   08_visualiser       → generates publication-quality plots
+#   Phase 1 (Paper 1 — The Degradation Problem):
+#     01_frame_extractor  → extracts frames from video files
+#     02_pose_inference   → runs MediaPipe + YOLOv8 on frames
+#     03_metrics          → computes jitter, confidence volatility, joint angles
+#     04_aggregator       → aggregates per-repetition (anti-pseudoreplication)
+#     05_statistics       → runs Wilcoxon, LMM, FDR correction
+#     08_visualiser       → generates publication-quality plots
+#
+#   Phase 2 (Paper 2 — The EKF & CoG Solution):
+#     07_ekf_filter       → Event-Triggered Kinematic EKF + baselines
+#     09_cog_tracker      → De Leva (1996) Center of Gravity engine
+#     10_filter_benchmark → MPJPE / PCK / phase-lag / velocity evaluation
 # =============================================================================
 
 import argparse       # CONCEPT: argparse lets you pass command-line arguments
@@ -33,6 +40,8 @@ import sys            #   like --step or --sample when running the script
 import time
 from pathlib import Path
 from datetime import datetime
+
+import pandas as pd
 
 # ── Import our modules ──────────────────────────────────────────────────────
 # CONCEPT: These are the modules WE wrote. Python finds them because we have
@@ -52,6 +61,10 @@ _aggregator      = importlib.import_module("src.04_aggregator")
 _statistics      = importlib.import_module("src.05_statistics")
 _visualiser      = importlib.import_module("src.08_visualiser")
 
+# Phase 2 modules
+_ekf_filter      = importlib.import_module("src.07_ekf_filter")
+_cog_tracker     = importlib.import_module("src.09_cog_tracker")
+
 # Now pull out the specific functions we need (same as "from module import func")
 from src.config import PATHS, VIDEO_CONFIG, PRACTITIONERS, TECHNIQUES
 
@@ -66,15 +79,22 @@ add_metadata        = _aggregator.add_metadata
 run_full_analysis   = _statistics.run_full_analysis
 generate_all_plots  = _visualiser.generate_all_plots
 
+# Phase 2 functions
+run_filter              = _ekf_filter.run_filter
+save_filtered_landmarks = _ekf_filter.save_filtered_landmarks
+save_diagnostics        = _ekf_filter.save_diagnostics
+cog_batch_process       = _cog_tracker.batch_process
+
 
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
-def print_banner():
+def print_banner(phase: int = 1):
     """Print a nice header when the pipeline starts."""
+    label = "Phase 1 — Degradation Analysis" if phase == 1 else "Phase 2 — EKF & CoG Solution"
     print("=" * 70)
-    print("  🥋  KaratePose-AI — Phase A Analysis Pipeline")
+    print(f"  🥋  KaratePose-AI — {label}")
     print("=" * 70)
     print(f"  Started:    {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"  Project:    {PATHS['sample_data'].parent.parent}")
@@ -306,6 +326,70 @@ def step_6_visualise(agg_a, agg_b, landmarks_a, landmarks_b, stats_results):
 
 
 # =============================================================================
+# PHASE 2 PIPELINE STEPS
+# =============================================================================
+
+def phase2_step_filter(landmark_csvs: list[Path]) -> dict:
+    """Phase 2 Step 1: Run all 4 filter modes on landmark CSVs."""
+    print_step(1, "EKF Filtering (4 modes)")
+
+    all_filtered = {}
+    for csv_path in landmark_csvs:
+        print(f"  📂 Input: {csv_path.name}")
+        landmarks_df = pd.read_csv(csv_path)
+        n_frames = landmarks_df["frame"].nunique()
+        models = landmarks_df["model"].unique() if "model" in landmarks_df.columns else ["mediapipe"]
+        print(f"     {len(landmarks_df)} rows, {n_frames} frames, models: {list(models)}")
+
+        for mode in ["raw", "skf", "linear_interp", "ekf"]:
+            print(f"\n  ▸ Filter mode: {mode.upper()}")
+            for model in models:
+                filtered_df, diag_df = run_filter(
+                    landmarks_df, model_name=model, filter_mode=mode
+                )
+                if not filtered_df.empty:
+                    fname = f"filtered_{mode}_{csv_path.stem}.csv"
+                    dname = f"diagnostics_{mode}_{csv_path.stem}.csv"
+                    save_filtered_landmarks(filtered_df, filename=fname)
+                    save_diagnostics(diag_df, filename=dname)
+                    all_filtered[f"{mode}_{model}_{csv_path.stem}"] = filtered_df
+                    print(f"    {model}: ✅ {len(filtered_df)} rows → {fname}")
+
+    return all_filtered
+
+
+def phase2_step_cog(scale_px_per_m: float = None) -> None:
+    """Phase 2 Step 2: Compute CoG from filtered landmarks."""
+    print_step(2, "De Leva (1996) Center of Gravity")
+
+    filtered_dir = PATHS["filtered"]
+    output_dir = PATHS["cog"]
+
+    if not filtered_dir.exists() or not list(filtered_dir.glob("filtered_*.csv")):
+        print("  ⚠️  No filtered CSVs found. Run --step filter first.")
+        return
+
+    cog_batch_process(
+        input_dir=filtered_dir,
+        output_dir=output_dir,
+        filter_modes=["raw", "skf", "linear_interp", "ekf"],
+        scale_px_per_m=scale_px_per_m,
+    )
+
+
+def phase2_step_benchmark() -> None:
+    """Phase 2 Step 3: Run filter benchmark comparison."""
+    print_step(3, "Filter Benchmark (MPJPE / PCK / Phase Lag)")
+
+    try:
+        _benchmark = importlib.import_module("src.10_filter_benchmark")
+        _benchmark.main()
+    except ModuleNotFoundError:
+        print("  ⚠️  Module 10 (filter_benchmark) not yet built.")
+        print("     This step will be available after 10_filter_benchmark.py is created.")
+
+
+# =============================================================================
 # MAIN ENTRY POINT
 # =============================================================================
 
@@ -319,20 +403,28 @@ def main():
     """
     # ── Parse command-line arguments ────────────────────────────────────
     parser = argparse.ArgumentParser(
-        description="KaratePose-AI Phase A Pipeline",
+        description="KaratePose-AI Pipeline Orchestrator",
         formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        "--phase",
+        type=int,
+        default=1,
+        choices=[1, 2],
+        help="Which research phase to run (1=degradation, 2=EKF+CoG)"
     )
     parser.add_argument(
         "--step",
         type=str,
         default="all",
         choices=["all", "extract", "inference", "metrics",
-                 "aggregate", "statistics", "visualise"],
+                 "aggregate", "statistics", "visualise",
+                 "filter", "cog", "benchmark"],
         help="Which pipeline step to run (default: all)"
     )
     parser.add_argument(
         "--sample",
-        action="store_true",  # CONCEPT: store_true means this is a flag
+        action="store_true",
         help="Run on sample/test data instead of real data"
     )
     parser.add_argument(
@@ -341,89 +433,133 @@ def main():
         default=None,
         help="Custom input directory containing videos"
     )
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=None,
+        help="Phase 2: pixels per metre for stance depth conversion"
+    )
 
     args = parser.parse_args()
 
-    # ── Print welcome banner ────────────────────────────────────────────
-    print_banner()
+    # Validate step belongs to the chosen phase
+    phase1_steps = {"all", "extract", "inference", "metrics", "aggregate", "statistics", "visualise"}
+    phase2_steps = {"all", "filter", "cog", "benchmark"}
 
-    # ── Discover available data ─────────────────────────────────────────
-    if args.input_dir:
-        data_dir = Path(args.input_dir)
-        video_paths = find_videos(data_dir)
-        print(f"  Using custom input: {data_dir}")
-    elif args.sample:
-        video_paths = find_videos(PATHS["sample_data"])
-        print(f"  🧪 Running on SAMPLE data")
-    else:
-        # Discover all available data
-        discovered = discover_data(PATHS["raw_data"].parent)
-        if not discovered:
-            print("  ⚠️  No video files found!")
-            print(f"     Place test videos in: {PATHS['sample_data']}")
-            print(f"     Or real data in: {PATHS['set_a']} and {PATHS['set_b']}")
-            sys.exit(1)
-
-        # Combine all discovered videos
-        video_paths = []
-        for category, paths in discovered.items():
-            print(f"  Found {len(paths)} video(s) in {category}/")
-            video_paths.extend(paths)
-
-    if not video_paths:
-        print("  ⚠️  No video files found! Add videos and try again.")
-        print(f"     Sample data folder: {PATHS['sample_data']}")
+    if args.phase == 1 and args.step not in phase1_steps:
+        print(f"  ⚠️  Step '{args.step}' is a Phase 2 step. Use --phase 2 --step {args.step}")
+        sys.exit(1)
+    if args.phase == 2 and args.step not in phase2_steps:
+        print(f"  ⚠️  Step '{args.step}' is a Phase 1 step. Use --phase 1 --step {args.step}")
         sys.exit(1)
 
-    print(f"\n  Total videos to process: {len(video_paths)}")
+    # ── Print welcome banner ────────────────────────────────────────────
+    print_banner(args.phase)
 
-    # ── Run pipeline steps ──────────────────────────────────────────────
     start_time = time.time()
 
-    # Step 1: Frame Extraction
-    if args.step in ("all", "extract"):
-        metadata = step_1_extract(video_paths)
+    # ════════════════════════════════════════════════════════════════════
+    # PHASE 2 — EKF Filtering → CoG Tracking → Benchmark
+    # ════════════════════════════════════════════════════════════════════
+    if args.phase == 2:
+        # Discover landmark CSVs (input for Phase 2)
+        landmark_dir = PATHS["landmarks"]
+        if args.input_dir:
+            landmark_dir = Path(args.input_dir)
 
-    # Step 2: Pose Inference
-    if args.step in ("all", "inference"):
-        all_landmarks = step_2_inference(video_paths)
+        landmark_csvs = sorted(landmark_dir.glob("*_landmarks.csv")) if landmark_dir.exists() else []
 
-    # Step 3: Metrics
-    if args.step in ("all", "metrics"):
-        if "all_landmarks" not in locals():
-            # Load from saved CSVs if we didn't just run inference
-            print("  Loading previously extracted landmarks...")
-            all_landmarks = {}
-            for vp in video_paths:
-                csv_path = PATHS["landmarks"] / (vp.stem + "_landmarks.csv")
-                if csv_path.exists():
-                    all_landmarks[vp.name] = load_landmarks_csv(str(csv_path))
-
-        all_metrics = step_3_metrics(all_landmarks)
-
-    # Step 4: Aggregation
-    if args.step in ("all", "aggregate"):
-        if "all_metrics" not in locals():
-            print("  ⚠️  Run metrics step first: python run_pipeline.py --step metrics")
+        if not landmark_csvs:
+            print(f"  ⚠️  No landmark CSVs found in {landmark_dir}")
+            print(f"     Run Phase 1 inference first: python run_pipeline.py --step inference")
             sys.exit(1)
-        all_aggregated = step_4_aggregate(all_metrics)
 
-    # Step 5: Statistics
-    if args.step in ("all", "statistics"):
-        if args.sample:
-            print("\n  📝 Note: Skipping full statistics since we only have a sample video.")
-            print("     (Full stats require both Set A and Set B data)")
-        else:
-            print("\n  📝 Note: Full statistical comparison requires both Set A and Set B data.")
+        print(f"  📂 Found {len(landmark_csvs)} landmark file(s)")
+        for lc in landmark_csvs:
+            print(f"     • {lc.name}")
+        print()
 
-    # Step 6: Visualisation
-    if args.step in ("all", "visualise"):
-        if args.sample:
-            print("\n  🎨 Generating visualisations from sample data...")
-            import subprocess
-            subprocess.run([sys.executable, "-m", "src.08_visualiser"])
+        # Step 1: EKF Filtering
+        if args.step in ("all", "filter"):
+            phase2_step_filter(landmark_csvs)
+
+        # Step 2: CoG Tracking
+        if args.step in ("all", "cog"):
+            phase2_step_cog(scale_px_per_m=args.scale)
+
+        # Step 3: Benchmark
+        if args.step in ("all", "benchmark"):
+            phase2_step_benchmark()
+
+    # ════════════════════════════════════════════════════════════════════
+    # PHASE 1 — Video → Frames → Pose → Metrics → Stats → Plots
+    # ════════════════════════════════════════════════════════════════════
+    else:
+        # ── Discover available data ─────────────────────────────────────
+        if args.input_dir:
+            data_dir = Path(args.input_dir)
+            video_paths = find_videos(data_dir)
+            print(f"  Using custom input: {data_dir}")
+        elif args.sample:
+            video_paths = find_videos(PATHS["sample_data"])
+            print(f"  🧪 Running on SAMPLE data")
         else:
-            print("\n  📝 Note: Full visualisation requires completed statistical analysis.")
+            discovered = discover_data(PATHS["raw_data"].parent)
+            if not discovered:
+                print("  ⚠️  No video files found!")
+                print(f"     Place test videos in: {PATHS['sample_data']}")
+                print(f"     Or real data in: {PATHS['set_a']} and {PATHS['set_b']}")
+                sys.exit(1)
+
+            video_paths = []
+            for category, paths in discovered.items():
+                print(f"  Found {len(paths)} video(s) in {category}/")
+                video_paths.extend(paths)
+
+        if not video_paths:
+            print("  ⚠️  No video files found! Add videos and try again.")
+            print(f"     Sample data folder: {PATHS['sample_data']}")
+            sys.exit(1)
+
+        print(f"\n  Total videos to process: {len(video_paths)}")
+
+        # ── Run Phase 1 pipeline steps ──────────────────────────────────
+        if args.step in ("all", "extract"):
+            metadata = step_1_extract(video_paths)
+
+        if args.step in ("all", "inference"):
+            all_landmarks = step_2_inference(video_paths)
+
+        if args.step in ("all", "metrics"):
+            if "all_landmarks" not in locals():
+                print("  Loading previously extracted landmarks...")
+                all_landmarks = {}
+                for vp in video_paths:
+                    csv_path = PATHS["landmarks"] / (vp.stem + "_landmarks.csv")
+                    if csv_path.exists():
+                        all_landmarks[vp.name] = load_landmarks_csv(str(csv_path))
+            all_metrics = step_3_metrics(all_landmarks)
+
+        if args.step in ("all", "aggregate"):
+            if "all_metrics" not in locals():
+                print("  ⚠️  Run metrics step first: python run_pipeline.py --step metrics")
+                sys.exit(1)
+            all_aggregated = step_4_aggregate(all_metrics)
+
+        if args.step in ("all", "statistics"):
+            if args.sample:
+                print("\n  📝 Note: Skipping full statistics since we only have a sample video.")
+                print("     (Full stats require both Set A and Set B data)")
+            else:
+                print("\n  📝 Note: Full statistical comparison requires both Set A and Set B data.")
+
+        if args.step in ("all", "visualise"):
+            if args.sample:
+                print("\n  🎨 Generating visualisations from sample data...")
+                import subprocess
+                subprocess.run([sys.executable, "-m", "src.08_visualiser"])
+            else:
+                print("\n  📝 Note: Full visualisation requires completed statistical analysis.")
 
     # ── Print summary ───────────────────────────────────────────────────
     elapsed = time.time() - start_time
