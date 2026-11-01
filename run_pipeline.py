@@ -383,10 +383,27 @@ def phase2_step_benchmark() -> None:
 
     try:
         _benchmark = importlib.import_module("src.10_filter_benchmark")
-        _benchmark.main()
     except ModuleNotFoundError:
         print("  ⚠️  Module 10 (filter_benchmark) not yet built.")
         print("     This step will be available after 10_filter_benchmark.py is created.")
+        return
+
+    # Load reference landmarks
+    landmark_dir = PATHS["landmarks"]
+    ref_files = sorted(landmark_dir.glob("*_landmarks.csv")) if landmark_dir.exists() else []
+    if not ref_files:
+        print(f"  ⚠️  No reference landmark CSVs in {landmark_dir}")
+        return
+
+    ref_path = ref_files[0]
+    print(f"  📂 Reference: {ref_path.name}")
+    reference_df = pd.read_csv(ref_path)
+
+    _benchmark.run_benchmark(
+        filtered_dir=PATHS["filtered"],
+        reference_df=reference_df,
+        output_dir=PATHS["benchmark"],
+    )
 
 
 # =============================================================================
