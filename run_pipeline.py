@@ -10,6 +10,7 @@
 #     python run_pipeline.py --step extract      # Run only frame extraction
 #     python run_pipeline.py --step inference     # Run only pose inference
 #     python run_pipeline.py --step metrics       # Run only metrics computation
+#     python run_pipeline.py --step reps          # Run velocity-based rep detection
 #     python run_pipeline.py --step aggregate     # Run only per-rep aggregation
 #     python run_pipeline.py --step statistics    # Run only statistical tests
 #     python run_pipeline.py --step visualise     # Run only plot generation
@@ -85,6 +86,13 @@ run_filter              = _ekf_filter.run_filter
 save_filtered_landmarks = _ekf_filter.save_filtered_landmarks
 save_diagnostics        = _ekf_filter.save_diagnostics
 cog_batch_process       = _cog_tracker.batch_process
+
+# Repetition detector utility
+try:
+    _rep_detector = importlib.import_module("src.rep_detector")
+    detect_reps_velocity = _rep_detector.detect_reps_velocity
+except Exception:
+    detect_reps_velocity = None
 
 
 # =============================================================================
@@ -239,7 +247,43 @@ def step_3_metrics(all_landmarks: dict) -> dict:
     return all_metrics
 
 
-def step_4_aggregate(all_metrics: dict, n_reps: int = 10) -> dict:
+def step_reps(all_landmarks: dict, n_reps: int = 10) -> dict:
+    """
+    Step R: Run velocity-based repetition segmentation.
+    Saves rep boundaries to output/metrics/rep_boundaries_<video>.csv.
+    """
+    print_step("R", "Repetition Detection (Velocity-Based)")
+
+    all_boundaries = {}
+    for video_name, landmarks_df in all_landmarks.items():
+        print(f"  🎯 Detecting reps for: {video_name}")
+        v_upper = video_name.upper()
+        technique = "OIZUKI" if "OIZUKI" in v_upper else ("GEDAN" if "GEDAN" in v_upper else ("STANCE" if "STANCE" in v_upper else "OIZUKI"))
+
+        if detect_reps_velocity is not None:
+            bounds = detect_reps_velocity(
+                landmarks_df=landmarks_df,
+                technique=technique,
+                n_reps=n_reps,
+            )
+        else:
+            bounds = detect_repetitions(landmarks_df, technique=technique, n_reps=n_reps)
+
+        all_boundaries[video_name] = bounds
+
+        # Save boundaries CSV
+        csv_stem = Path(video_name).stem
+        out_csv = PATHS["metrics"] / f"rep_boundaries_{csv_stem}.csv"
+        PATHS["metrics"].mkdir(parents=True, exist_ok=True)
+        rep_df = pd.DataFrame(bounds, columns=["start_frame", "end_frame"])
+        rep_df.index.name = "rep_id"
+        rep_df.to_csv(out_csv)
+        print(f"     ✅ Found {len(bounds)} reps → {out_csv.name}")
+
+    return all_boundaries
+
+
+def step_4_aggregate(all_metrics: dict, all_landmarks: dict = None, n_reps: int = 10) -> dict:
     """
     Step 4: Aggregate frame-level data into per-repetition summaries.
 
@@ -247,6 +291,8 @@ def step_4_aggregate(all_metrics: dict, n_reps: int = 10) -> dict:
     This yields N=30 paired observations per technique/condition combination."
 
     THIS IS THE CRITICAL PSEUDOREPLICATION FIX.
+    Uses velocity-based repetition segmentation when landmark data is provided,
+    falling back to equal-division otherwise.
     """
     print_step(4, "Per-Repetition Aggregation")
 
@@ -254,19 +300,38 @@ def step_4_aggregate(all_metrics: dict, n_reps: int = 10) -> dict:
     for video_name, metrics in all_metrics.items():
         print(f"  📦 Aggregating: {video_name}")
 
-        # Detect rep boundaries (simple equal-division for now)
         jitter_df = metrics["jitter"]
         if len(jitter_df) == 0:
             print(f"     ⚠️  No jitter data — skipping")
             continue
 
-        # Get repetition boundaries using the jitter data
-        # detect_repetitions uses len(landmarks_df) to determine total frames
-        rep_boundaries = detect_repetitions(
-            landmarks_df=jitter_df,
-            technique="unknown",
-            n_reps=n_reps,
-        )
+        v_upper = video_name.upper()
+        technique = "OIZUKI" if "OIZUKI" in v_upper else ("GEDAN" if "GEDAN" in v_upper else ("STANCE" if "STANCE" in v_upper else "unknown"))
+
+        # Attempt velocity-based rep detection first
+        rep_boundaries = None
+        if detect_reps_velocity is not None and all_landmarks and video_name in all_landmarks:
+            landmarks_df = all_landmarks[video_name]
+            try:
+                vel_bounds = detect_reps_velocity(
+                    landmarks_df=landmarks_df,
+                    technique=technique,
+                    n_reps=n_reps,
+                )
+                if vel_bounds and len(vel_bounds) > 0:
+                    rep_boundaries = vel_bounds
+                    print(f"     🎯 Using velocity-based rep boundaries ({len(rep_boundaries)} reps)")
+            except Exception as e:
+                print(f"     ⚠️  Velocity rep detection fallback: {e}")
+
+        # Fallback to equal division
+        if rep_boundaries is None:
+            rep_boundaries = detect_repetitions(
+                landmarks_df=jitter_df,
+                technique=technique,
+                n_reps=n_reps,
+            )
+            print(f"     ⏱️  Using equal-division rep boundaries ({len(rep_boundaries)} reps)")
 
         # Aggregate jitter per repetition
         jitter_agg = aggregate_per_repetition(
@@ -459,7 +524,7 @@ def main():
         "--step",
         type=str,
         default="all",
-        choices=["all", "extract", "inference", "metrics",
+        choices=["all", "extract", "inference", "metrics", "reps",
                  "aggregate", "statistics", "visualise",
                  "filter", "cog", "benchmark", "plots"],
         help="Which pipeline step to run (default: all)"
@@ -485,7 +550,7 @@ def main():
     args = parser.parse_args()
 
     # Validate step belongs to the chosen phase
-    phase1_steps = {"all", "extract", "inference", "metrics", "aggregate", "statistics", "visualise"}
+    phase1_steps = {"all", "extract", "inference", "metrics", "reps", "aggregate", "statistics", "visualise"}
     phase2_steps = {"all", "filter", "cog", "benchmark", "plots"}
 
     if args.phase == 1 and args.step not in phase1_steps:
@@ -586,11 +651,43 @@ def main():
                         all_landmarks[vp.name] = load_landmarks_csv(str(csv_path))
             all_metrics = step_3_metrics(all_landmarks)
 
+        if args.step in ("all", "reps"):
+            if "all_landmarks" not in locals():
+                all_landmarks = {}
+                for vp in video_paths:
+                    csv_path = PATHS["landmarks"] / (vp.stem + "_landmarks.csv")
+                    if csv_path.exists():
+                        all_landmarks[vp.name] = load_landmarks_csv(str(csv_path))
+            if all_landmarks and args.step == "reps":
+                step_reps(all_landmarks)
+
         if args.step in ("all", "aggregate"):
             if "all_metrics" not in locals():
-                print("  ⚠️  Run metrics step first: python run_pipeline.py --step metrics")
-                sys.exit(1)
-            all_aggregated = step_4_aggregate(all_metrics)
+                jitter_csv = PATHS["metrics"] / "spatial_jitter.csv"
+                conf_csv = PATHS["metrics"] / "confidence_volatility.csv"
+                angles_csv = PATHS["metrics"] / "joint_angles.csv"
+                if jitter_csv.exists() and conf_csv.exists():
+                    print("  Loading previously computed metrics from output/metrics...")
+                    j_df = pd.read_csv(jitter_csv)
+                    c_df = pd.read_csv(conf_csv)
+                    a_df = pd.read_csv(angles_csv) if angles_csv.exists() else pd.DataFrame()
+                    all_metrics = {}
+                    for vp in video_paths:
+                        all_metrics[vp.name] = {
+                            "jitter": j_df,
+                            "confidence": c_df,
+                            "angles": a_df,
+                        }
+                else:
+                    print("  ⚠️  Run metrics step first: python run_pipeline.py --step metrics")
+                    sys.exit(1)
+            if "all_landmarks" not in locals():
+                all_landmarks = {}
+                for vp in video_paths:
+                    csv_path = PATHS["landmarks"] / (vp.stem + "_landmarks.csv")
+                    if csv_path.exists():
+                        all_landmarks[vp.name] = load_landmarks_csv(str(csv_path))
+            all_aggregated = step_4_aggregate(all_metrics, all_landmarks=all_landmarks)
 
         if args.step in ("all", "statistics"):
             if args.sample:

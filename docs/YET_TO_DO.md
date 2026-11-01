@@ -30,11 +30,11 @@
 - [x] `README.md` — Full project structure, run commands, architecture diagram
 - [x] `docs/Phase_2_Plan.md` — Phase 2 architecture & roadmap
 - [x] `docs/Video_Recording_Guide.md` — Updated to self-paced protocol (no metronome)
-- [x] `docs/Paper_1_Draft.md` — Manuscript 1 draft
+- [x] `docs/Paper_1_Draft.md` — Manuscript 1 draft (The Degradation Problem)
+- [x] `docs/Paper_2_Draft.md` — Manuscript 2 draft (The EKF & CoG Solution)
 
 ### Git — All Pushed
 - [x] All code and docs committed to `origin/main`
-- [x] Latest commit: `5acd81b` — rep detector + self-paced protocol update
 
 ---
 
@@ -53,58 +53,55 @@
 ### 2. Run Full Pipeline on Real Data
 
 ```bash
-# Phase 1: Extract → Infer → Metrics → Aggregate → Stats → Plots
+# Phase 1: Extract → Infer → Metrics → Reps → Aggregate → Stats → Plots
 python run_pipeline.py --phase 1
 
-# Phase 2: Filter → CoG → Benchmark
+# Phase 2: Filter → CoG → Benchmark → Publication Plots
 python run_pipeline.py --phase 2
 
-# If you measured calibration scale (pixels per metre):
+# With calibration scale (pixels per metre):
 python run_pipeline.py --phase 2 --step cog --scale <PIXELS_PER_METRE>
 ```
 
-### 3. Run Rep Detector on Each Landmark CSV
+### 3. Run Rep Detector / Verify Rep Boundaries
 
 ```bash
-# After inference produces landmark CSVs, segment reps:
+# Automated via pipeline:
+python run_pipeline.py --step reps
+
+# Or standalone per landmark CSV:
 python -m src.rep_detector --input data/landmarks/SETA_OIZUKI_T01_60FPS_landmarks.csv --technique OIZUKI
 python -m src.rep_detector --input data/landmarks/SETA_GEDAN_T01_60FPS_landmarks.csv --technique GEDAN
 python -m src.rep_detector --input data/landmarks/SETA_STANCE_T01_60FPS_landmarks.csv --technique STANCE
-# ... repeat for SETB files
 ```
 
-> The rep detector outputs `output/metrics/rep_boundaries_*.csv`.
-> Feed these boundaries into `04_aggregator.aggregate_per_repetition()` for
-> Paper 1 stats on real data.
+> Rep boundaries are saved to `output/metrics/rep_boundaries_*.csv` and automatically consumed by `step_4_aggregate()`.
 
-### 4. Write Paper 2 Manuscript
-- [ ] **Introduction** — Pose estimation under occlusion, EKF motivation
-- [ ] **Literature Review** — Physics-informed filtering in biomechanics, de Leva 1996, Kime
-- [ ] **Methodology** — EKF formulation, confidence-gated measurement, CoG model, benchmark metrics
-- [ ] **Results** — Tables from `output/benchmark/benchmark_summary.csv` and `output/cog/cog_all_combined.csv`
-- [ ] **Discussion** — EKF vs SKF vs linear interp, velocity preservation = Kime fidelity
-- [ ] **Conclusion**
+### 4. Finalize Paper 2 Manuscript
+- [x] **Full draft created:** `docs/Paper_2_Draft.md`
+- [ ] Update Results section tables with final numbers from real data
+- [ ] Insert finalized figures from `output/plots/phase2/`
+- [ ] Proofread for journal/conference submission format
 
-### 5. Generate Publication Figures for Paper 2
-- [ ] EKF vs Raw trajectory plot (wrist during Oi-zuki)
-- [ ] Filter comparison bar chart (MPJPE by mode)
-- [ ] PCK@0.2 radar chart (per joint)
-- [ ] CoG trajectory comparison (raw vs EKF, sagittal plane)
-- [ ] Velocity profile overlay showing Kime preservation (PVR metric)
-- [ ] Phase lag comparison (cross-correlation offset per filter)
-
-> **Tip:** Use `08_visualiser.py` as a template. Copy it for Paper 2 plots
-> or write a new `11_phase2_visualiser.py`.
+### 5. Generate Publication Figures for Paper 2 ✅ DONE
+- [x] EKF vs Raw trajectory plot (`trajectory_wrist_mp.png`)
+- [x] Velocity profile overlay showing Kime preservation (`velocity_wrist_mp.png`)
+- [x] Filter comparison bar chart (`mpjpe_bars.png`)
+- [x] PCK@0.2 radar chart (`pck_radar_mp.png`)
+- [x] Peak Velocity Preservation Ratio bar chart (`pvr_bars.png`)
+- [x] CoG trajectory comparison (`cog_trajectory_mp.png`)
+- [x] Stance depth over time (`stance_depth_mp.png`)
+- [x] Benchmark summary table figure (`benchmark_table.png`)
+- [x] Automated via `python run_pipeline.py --phase 2 --step plots` or `python -m src.11_phase2_visualiser`
 
 ---
 
 ## 🟡 IMPORTANT — Should Do
 
-### 6. Wire Rep Detector into Pipeline (Optional Enhancement)
-- [ ] Add `--step reps` to `run_pipeline.py` Phase 2
-- [ ] Auto-run rep detection before aggregation
-- [ ] Pass detected boundaries into `step_4_aggregate()` instead of equal division
-- [ ] This replaces the simple equal-division fallback with real velocity-based boundaries
+### 6. Wire Rep Detector into Pipeline ✅ DONE
+- [x] Added `--step reps` to `run_pipeline.py`
+- [x] Integrated `detect_reps_velocity` inside `step_4_aggregate()` with graceful fallback
+- [x] Auto-loads metrics & landmarks from disk when running individual steps
 
 ### 7. Calculate Calibration Scale
 - [ ] Open calibration rod video in any image viewer
