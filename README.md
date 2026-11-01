@@ -103,7 +103,8 @@ Karate Pose AI/
 │   ├── 10_filter_benchmark.py  # MPJPE, PCK@0.2, phase lag, & velocity preservation benchmark
 │   │
 │   │   # ── UTILITIES ─────────────────────────────────────
-│   └── rep_detector.py         # Velocity-based automatic repetition segmentation
+│   ├── rep_detector.py         # Velocity-based automatic repetition segmentation
+│   └── 11_phase2_visualiser.py # Publication-ready plots for Paper 2
 │
 ├── data/
 │   ├── landmarks/              # Intermediate pose detection CSVs
@@ -202,6 +203,14 @@ python -m src.rep_detector --input data/landmarks/FILE_landmarks.csv --technique
 
 # Specify expected reps (default: 10)
 python -m src.rep_detector --input data/landmarks/FILE_landmarks.csv --technique GEDAN --n-reps 10
+```
+
+#### Phase 2: Publication Figures
+```bash
+# Generate all 8 Paper 2 plots at once
+python -m src.11_phase2_visualiser
+
+# Output → output/plots/phase2/
 ```
 
 ---

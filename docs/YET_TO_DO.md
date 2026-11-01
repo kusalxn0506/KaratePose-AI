@@ -22,7 +22,8 @@
 - [x] `src/09_cog_tracker.py` — De Leva 1996 CoG engine + stance depth
 - [x] `src/10_filter_benchmark.py` — MPJPE, PCK@0.2, phase lag, velocity preservation
 - [x] `src/rep_detector.py` — Velocity-based auto rep segmentation
-- [x] `run_pipeline.py` — Full orchestrator (`--phase 1` / `--phase 2`)
+- [x] `src/11_phase2_visualiser.py` — Publication-ready plots for Paper 2 (8 figures)
+- [x] `run_pipeline.py` — Full orchestrator (`--phase 1` / `--phase 2`, includes `--step plots`)
 - [x] `src/config.py` — All EKF params, de Leva weights, benchmark paths
 
 ### Documentation — COMPLETE
@@ -159,10 +160,10 @@ vel_decay_min: 0.80
 - [ ] Wilcoxon on MPJPE improvement per joint
 - [ ] Effect sizes on velocity preservation ratio
 
-### 13. Create `11_phase2_visualiser.py`
-- [ ] Dedicated plotting module for Paper 2 figures
-- [ ] Import from `config.py` only (follows the frozen module rule)
-- [ ] Reads from `output/filtered/`, `output/cog/`, `output/benchmark/`
+### 13. ~~Create `11_phase2_visualiser.py`~~ ✅ DONE
+- [x] Dedicated plotting module for Paper 2 figures
+- [x] 8 plots: trajectory, velocity, MPJPE bars, PCK radar, PVR bars, CoG trajectory, stance depth, benchmark table
+- [x] Run: `python -m src.11_phase2_visualiser` or `python run_pipeline.py --phase 2 --step plots`
 
 ---
 
@@ -230,6 +231,10 @@ python run_pipeline.py --phase 2
 python run_pipeline.py --phase 2 --step filter
 python run_pipeline.py --phase 2 --step cog --scale 1920
 python run_pipeline.py --phase 2 --step benchmark
+
+# Phase 2 publication plots
+python run_pipeline.py --phase 2 --step plots
+python -m src.11_phase2_visualiser
 
 # Rep detection
 python -m src.rep_detector --input data/landmarks/FILE.csv --technique OIZUKI
