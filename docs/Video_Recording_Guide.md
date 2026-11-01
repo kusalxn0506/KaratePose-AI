@@ -80,10 +80,6 @@ Pack everything the night before. Don't wing it.
 - [ ] 14oz heavyweight canvas Karate Gi (jacket + trousers) × 3
 - [ ] Belt (obi) × 3
 
-### 🔊 Audio
-- [ ] Metronome app set to **60 BPM** (or a physical metronome)
-- [ ] Small Bluetooth speaker (loud enough to hear across the room)
-
 ### 📋 Paperwork
 - [ ] Printed copy of this guide
 - [ ] Printed `data_collection_sheet.csv` (to log each take)
@@ -102,7 +98,7 @@ Pack everything the night before. Don't wing it.
 | **Lighting** | **500+ lux**, diffuse and uniform — avoid direct backlighting or harsh overhead spots |
 | **Background** | Solid, matte, non-reflective wall (gray, dark blue, or plain white) |
 | **Floor** | Non-slip surface (dojo mats, wooden sprung floor, or clean tile) |
-| **Noise** | Quiet enough to hear the metronome clearly |
+| **Noise** | Minimal distractions — quiet enough for verbal cues |
 
 ### Setting Up the Space
 
@@ -265,15 +261,24 @@ clearly, and the markers give visual anchor points.
 
 ## 7. The 3 Techniques — Execution Instructions
 
-All techniques follow a **4-phase timing protocol** synchronised to a 60 BPM
-metronome:
+All techniques follow a **self-paced protocol**. Practitioners perform at
+their natural cadence — no metronome or forced timing is required.
+
+> [!IMPORTANT]
+> **Why self-paced?** Forced metronomic timing distorts natural karate
+> biomechanics, particularly *Kime* (decisive finishing tension). Self-paced
+> execution is more ecologically valid and is standard in published biomechanics
+> research (Lees 2002, Quinzi et al. 2016). The pipeline's `rep_detector.py`
+> module automatically segments reps using wrist/ankle velocity peaks.
 
 ```
-Time:     [0s] ──── [3s] ──── [4s] ──── [5s] ──── [8s]
-Phase:    Static     Stance    Peak      Isometric  Recovery
-          Calibr.    Initiate  Kime      Hold       (Return)
-State:    Yoi/       Rapid     Impact    Fixed      Back to
-          T-pose     move      point     stance     Yoi
+Each rep cycle (self-paced):
+    ┌─────────┐     ┌──────────┐     ┌─────────┐
+    │ Ready   │ ──► │ Execute  │ ──► │ Reset   │ ──► (next rep)
+    │ (Yoi)   │     │ (Strike) │     │ (Return)│
+    └─────────┘     └──────────┘     └─────────┘
+    Practitioner     Full technique    Step back to
+    signals ready    at natural pace   start position
 ```
 
 ### Technique 1: *Oi-zuki* (Stepping Lunge Punch)
@@ -283,8 +288,8 @@ State:    Yoi/       Rapid     Impact    Fixed      Back to
 | **Japanese** | 追い突き (*Oi-zuki*) |
 | **Start** | Left *Zenkutsu-dachi* (front stance), left arm in *Gedan-barai* position |
 | **Action** | Step forward with right leg into right *Zenkutsu-dachi*; right *Chudan Oi-zuki* (middle-level stepping punch) with full 180° forearm rotation |
-| **End** | Hold final *Zenkutsu-dachi* + extended punch for 3 seconds |
-| **Reset** | Step back to starting position; pause 3 seconds; repeat |
+| **End** | Hold final *Zenkutsu-dachi* + extended punch briefly (*Kime* finish) |
+| **Reset** | Step back to starting position; brief natural pause; repeat |
 | **Focus Joints** | Ankle, knee (sagittal velocity), hip translation, elbow extension |
 | **Reps** | 10 × Set A, then 10 × Set B |
 
@@ -295,8 +300,8 @@ State:    Yoi/       Rapid     Impact    Fixed      Back to
 | **Japanese** | 下段払い (*Gedan-barai*) |
 | **Start** | Left *Zenkutsu-dachi*, right arm chambered at ear level |
 | **Action** | Execute downward sweeping block with aggressive hip rotation (*Hanmi → Shomen*) |
-| **End** | Hold final block position for 3 seconds |
-| **Reset** | Return to start; pause 3 seconds; repeat |
+| **End** | Hold final block position briefly (*Kime* finish) |
+| **Reset** | Return to start; brief natural pause; repeat |
 | **Focus Joints** | Torso/upper arm (severe canvas folding area), shoulder, wrist deceleration |
 | **Reps** | 10 × Set A, then 10 × Set B |
 
@@ -307,8 +312,8 @@ State:    Yoi/       Rapid     Impact    Fixed      Back to
 | **Japanese** | 前屈立ち → 騎馬立ち |
 | **Start** | Right *Zenkutsu-dachi* (deep front stance, ~60% weight forward) |
 | **Action** | 90° pivot into *Kiba-dachi* (horse-riding stance, 50/50 weight distribution, wide knee abduction) |
-| **End** | Hold *Kiba-dachi* for 3 seconds |
-| **Reset** | Pivot back to *Zenkutsu-dachi*; pause 3 seconds; repeat |
+| **End** | Hold *Kiba-dachi* briefly (*Kime* finish) |
+| **Reset** | Pivot back to *Zenkutsu-dachi*; brief natural pause; repeat |
 | **Focus Joints** | Hip occlusion by trouser folds, CoG vertical/lateral shift |
 | **Reps** | 10 × Set A, then 10 × Set B |
 
@@ -328,7 +333,6 @@ Follow this **exact sequence** for every single take:
 1. ✅ Confirm camera hasn't moved (check the tripod tape mark).
 2. ✅ Confirm AE/AF Lock is still active (long-press the screen if unsure).
 3. ✅ Confirm practitioner is in the correct garment condition.
-4. ✅ Start the metronome.
 
 ### The Recording Sequence
 
@@ -343,8 +347,8 @@ Follow this **exact sequence** for every single take:
 │          (this gives the AI a clean starting reference)        │
 │                                                                │
 │  Step 4: 🥋 PERFORM 10 REPS — Execute the technique           │
-│          with 3-second resets between each rep                 │
-│          (Listen to metronome for pacing)                      │
+│          at natural pace with brief pauses between reps        │
+│          (rep_detector.py auto-segments afterwards)             │
 │                                                                │
 │  Step 5: 🧍 FINAL HOLD — 3-second static hold after last rep  │
 │                                                                │
@@ -356,7 +360,7 @@ Follow this **exact sequence** for every single take:
 ```
 
 ### Estimated Duration Per Take
-- 3s (static) + 10 reps × ~8s (technique + reset) + 3s (final hold) ≈ **~90 seconds**
+- 3s (static) + 10 reps at natural pace + 3s (final hold) ≈ **60–120 seconds** (varies with natural cadence)
 
 > [!NOTE]
 > **If something goes wrong mid-take** (marker falls off, practitioner slips,
@@ -540,7 +544,7 @@ Run through this **after each practitioner's session**, before they leave:
 | **Practitioner goes out of frame** | Move the camera back (increase distance to 5m) or switch to the wide-angle lens (0.5× on iPhone). Re-record the calibration rod at the new distance. |
 | **AE/AF Lock keeps resetting** | This happens if you switch apps or lock the phone. Re-lock focus/exposure before every single take. |
 | **Fluorescent markers not visible** | Use brighter/larger markers, or add a desk lamp pointing at the practitioner. The markers need contrast against the black compression gear. |
-| **iPhone runs out of storage** | 4K 60fps ≈ 400 MB/minute. Each take is ~90 seconds ≈ 600 MB. Budget **~5 GB per practitioner** (8 takes). Transfer files to Mac between sessions. |
+| **iPhone runs out of storage** | 4K 60fps ≈ 400 MB/minute. Each take is 60–120 seconds ≈ 400–800 MB. Budget **~5 GB per practitioner** (8 takes). Transfer files to Mac between sessions. |
 | **Tripod gets bumped between Set A and Set B** | If you can't get it back to the exact position, you must redo the calibration rod clip. Ideally, tape the tripod legs to the floor. |
 | **Practitioner fatigues and reps slow down** | Give a 5-minute break between techniques. Offer water. Quality > speed. |
 | **The Gi belt comes undone mid-take** | Re-tie and redo the take. Mark the voided take in your log. |
@@ -563,7 +567,8 @@ Run through this **after each practitioner's session**, before they leave:
 ╠══════════════════════════════════════════════════╣
 ║  PER TAKE:                                        ║
 ║  🔴 Record → 👏 Clap → 🧍 3s Pose →             ║
-║  🥋 10 Reps (3s reset) → 🧍 3s Hold → ⏹️ Stop  ║
+║  🥋 10 Reps (natural pace) → 🧍 3s Hold → ⏹️    ║
+║  rep_detector.py auto-segments reps afterwards    ║
 ╠══════════════════════════════════════════════════╣
 ║  FILES: SETA_OIZUKI_T01_60FPS.mov                ║
 ║         SETB_GEDAN_T01_60FPS.mov                  ║
@@ -573,5 +578,5 @@ Run through this **after each practitioner's session**, before they leave:
 
 ---
 
-*Last updated: October 2026*
+*Last updated: November 2026*
 *Part of the KaratePose-AI Research Project*

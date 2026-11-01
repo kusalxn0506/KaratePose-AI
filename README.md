@@ -100,7 +100,10 @@ Karate Pose AI/
 │   │   # ── PHASE 2 (Paper 2: The EKF & CoG Solution) ────
 │   ├── 07_ekf_filter.py        # Event-triggered kinematic EKF (4 modes + ablation toggles)
 │   ├── 09_cog_tracker.py       # De Leva (1996) biomechanical CoG & stance depth engine
-│   └── 10_filter_benchmark.py  # MPJPE, PCK@0.2, phase lag, & velocity preservation benchmark
+│   ├── 10_filter_benchmark.py  # MPJPE, PCK@0.2, phase lag, & velocity preservation benchmark
+│   │
+│   │   # ── UTILITIES ─────────────────────────────────────
+│   └── rep_detector.py         # Velocity-based automatic repetition segmentation
 │
 ├── data/
 │   ├── landmarks/              # Intermediate pose detection CSVs
@@ -190,6 +193,15 @@ python run_pipeline.py --phase 2 --step cog --scale 1920
 # Or run modules standalone
 python -m src.07_ekf_filter                          # EKF standalone test
 python -m src.09_cog_tracker                         # CoG standalone batch
+```
+
+#### Utility: Automatic Repetition Segmentation
+```bash
+# Detect rep boundaries from landmark CSV (self-paced protocol)
+python -m src.rep_detector --input data/landmarks/FILE_landmarks.csv --technique OIZUKI
+
+# Specify expected reps (default: 10)
+python -m src.rep_detector --input data/landmarks/FILE_landmarks.csv --technique GEDAN --n-reps 10
 ```
 
 ---
