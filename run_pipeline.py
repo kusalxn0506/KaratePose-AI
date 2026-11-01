@@ -343,17 +343,28 @@ def phase2_step_filter(landmark_csvs: list[Path]) -> dict:
 
         for mode in ["raw", "skf", "linear_interp", "ekf"]:
             print(f"\n  ▸ Filter mode: {mode.upper()}")
+            mode_filtered_parts = []
+            mode_diag_parts = []
+
             for model in models:
                 filtered_df, diag_df = run_filter(
                     landmarks_df, model_name=model, filter_mode=mode
                 )
                 if not filtered_df.empty:
-                    fname = f"filtered_{mode}_{csv_path.stem}.csv"
-                    dname = f"diagnostics_{mode}_{csv_path.stem}.csv"
-                    save_filtered_landmarks(filtered_df, filename=fname)
-                    save_diagnostics(diag_df, filename=dname)
+                    mode_filtered_parts.append(filtered_df)
+                    mode_diag_parts.append(diag_df)
                     all_filtered[f"{mode}_{model}_{csv_path.stem}"] = filtered_df
-                    print(f"    {model}: ✅ {len(filtered_df)} rows → {fname}")
+                    print(f"    {model}: ✅ {len(filtered_df)} rows")
+
+            # Save all models combined into one file per mode
+            if mode_filtered_parts:
+                combined_filt = pd.concat(mode_filtered_parts, ignore_index=True)
+                combined_diag = pd.concat(mode_diag_parts, ignore_index=True)
+                fname = f"filtered_{mode}_{csv_path.stem}.csv"
+                dname = f"diagnostics_{mode}_{csv_path.stem}.csv"
+                save_filtered_landmarks(combined_filt, filename=fname)
+                save_diagnostics(combined_diag, filename=dname)
+                print(f"    Combined: {len(combined_filt)} rows → {fname}")
 
     return all_filtered
 
