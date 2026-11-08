@@ -254,6 +254,28 @@ EKF_CONFIG = {
                                     #   - Must be high enough to track ballistic Kime (~1.2 m/s)
                                     #   - Too high → filter follows noise; too low → lags behind strikes
                                     # Validated range: 10–150. Optimal: 75 (see validation tests).
+
+    # ── Two-Stage Occlusion Handling (Bug-fix: covariance explosion) ──────
+    # Stage 1 (frames 1..max_coast_frames): Pure ballistic momentum coasting.
+    #   The EKF predicts forward using damped Newtonian physics, rejecting
+    #   the corrupted measurement entirely (K=0). This captures the true Kime
+    #   apex that linear interpolation would clip off.
+    #
+    # Stage 2 (frames > max_coast_frames): Soft confidence-gated tether.
+    #   Instead of dead-reckoning (which flatlines), the EKF switches to a
+    #   high-R_t measurement update. This follows the arm's macro-retraction
+    #   while filtering out high-frequency jitter.
+    #
+    # A Shotokan punch reaches peak Kime within 130–200ms (8–12 frames at
+    # 60 FPS). 12 frames is therefore a physically motivated cutoff.
+    "max_coast_frames":     12,     # Stage 1→2 transition (200ms at 60 FPS)
+
+    # ── Re-acquisition Blending ──────────────────────────────────────────
+    # When confidence recovers above threshold after an occlusion, the
+    # filter does not instantly snap to K≈1 (which causes the vertical cliff
+    # drop). Instead, R is scaled by a decaying factor over reacq_ramp_frames
+    # so the filter gently blends back to full measurement trust.
+    "reacq_ramp_frames":    5,      # Exponential ramp duration on re-acquisition
 }
 
 

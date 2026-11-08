@@ -351,6 +351,22 @@ def run_ekf_single_joint(
     last_good_x = xs[0]
     last_good_y = ys[0]
 
+    # ── Two-stage occlusion and re-acquisition parameters ──
+    # (See config.py EKF_CONFIG for full explanation.)
+    #
+    # max_coast_frames: After this many consecutive predict-only frames,
+    #   the filter switches from blind dead-reckoning (Stage 1) to a soft
+    #   confidence-gated tether (Stage 2), following the raw detector's
+    #   macro-motion with high R to filter out jitter.
+    #
+    # reacq_ramp_frames: When confidence recovers after an occlusion,
+    #   R is scaled by a decaying multiplier over this many frames so the
+    #   filter blends back to full measurement trust smoothly, eliminating
+    #   the 1-frame "cliff drop" teleport.
+    max_coast_frames = EKF_CONFIG.get("max_coast_frames", 12)
+    reacq_ramp_frames = EKF_CONFIG.get("reacq_ramp_frames", 5)
+    frames_since_reacq = reacq_ramp_frames  # Start fully settled
+
     # ── Main Kalman loop ──
     for t in range(1, N):
         # ─── STEP 1: PREDICT ─────────────────────────────────────────
@@ -365,43 +381,15 @@ def run_ekf_single_joint(
         is_occluded = (use_event_trigger and c_t < threshold)
 
         if is_occluded and use_momentum_projection:
-            # ── OCCLUSION: Predict-only (momentum projection) ─────────
-            # The Gi is hiding this joint. We DON'T trust the measurement.
-            # Instead, we coast on our physics prediction.
-            #
-            # PROGRESSIVE DAMPING STRATEGY:
-            # Real data shows occlusion gaps up to 86 frames (1.4s).
-            # A pure constant-acceleration coast diverges badly over
-            # such long gaps. We use a "fading memory" approach from
-            # target tracking literature (Li & Jilkov, 2003):
-            #
-            #   - Velocity decays gently: preserves short ballistic
-            #     projections but prevents runaway over long gaps.
-            #   - Acceleration decays faster: ballistic impulse fades
-            #     rapidly as the strike completes.
-            #   - After many frames, the filter holds roughly the last
-            #     known position (graceful degradation to "hold").
-            #
-            # Decay rates (per frame):
-            #   velocity:     0.98 → halves every ~34 frames (~0.57s)
-            #   acceleration: 0.90 → halves every ~7 frames (~0.12s)
-            #
-            # This means for short gaps (5-10 frames): mostly momentum.
-            # For long gaps (50+ frames): effectively holding position.
+            # ── OCCLUSION: Two-Stage Handling ─────────────────────────
+            # The Gi is hiding this joint. We decide how to handle it
+            # based on how long the occlusion has lasted.
             coast_frames += 1
-
-            x_state = x_pred.copy()
-            P = P_pred
 
             # ADAPTIVE DAMPING: damping increases with coast duration.
             # Short occlusions (1-10 frames): light damping, momentum preserved.
             # Medium occlusions (10-30 frames): moderate damping.
             # Long occlusions (30+ frames): heavy damping, approaching hold.
-            #
-            # We use a sigmoid-shaped decay that transitions from gentle
-            # to aggressive around the 15-frame mark (~0.25s at 60 FPS).
-            # This preserves the ballistic projection for brief Gi flutter
-            # while preventing runaway drift during extended occlusions.
             #
             # Physics motivation: a karate strike's ballistic phase lasts
             # ~0.1-0.2s. After that, the limb decelerates. So trusting
@@ -409,13 +397,81 @@ def run_ekf_single_joint(
             vel_decay = max(0.80, 0.98 - 0.01 * coast_frames)   # 0.98→0.80 over 18 frames
             acc_decay = max(0.50, 0.90 - 0.02 * coast_frames)   # 0.90→0.50 over 20 frames
 
-            x_state[2] *= vel_decay   # ẋ (velocity x)
-            x_state[3] *= vel_decay   # ẏ (velocity y)
-            x_state[4] *= acc_decay   # ẍ (acceleration x)
-            x_state[5] *= acc_decay   # ÿ (acceleration y)
+            if coast_frames <= max_coast_frames:
+                # ── STAGE 1: Pure Ballistic Momentum Coasting ─────────
+                # For the first max_coast_frames (default 12, ~200ms),
+                # we reject the corrupted measurement entirely and coast
+                # on our physics prediction. This captures the true Kime
+                # apex that linear interpolation would clip off.
+                x_state = x_pred.copy()
+                P = P_pred.copy()
 
-            event_triggered[t] = True
-            kalman_gain_norm[t] = 0.0  # No measurement incorporated
+                # COVARIANCE DAMPING (Bug-fix):
+                # Scale the velocity and acceleration blocks of P by the
+                # same decay factors squared. This prevents P from exploding
+                # during prolonged coasting, which would cause K≈1 on
+                # re-acquisition (the "cliff drop" teleport).
+                P[2, 2] *= vel_decay ** 2  # Var(ẋ)
+                P[3, 3] *= vel_decay ** 2  # Var(ẏ)
+                P[4, 4] *= acc_decay ** 2  # Var(ẍ)
+                P[5, 5] *= acc_decay ** 2  # Var(ÿ)
+
+                # Damp state velocity and acceleration
+                x_state[2] *= vel_decay   # ẋ (velocity x)
+                x_state[3] *= vel_decay   # ẏ (velocity y)
+                x_state[4] *= acc_decay   # ẍ (acceleration x)
+                x_state[5] *= acc_decay   # ÿ (acceleration y)
+
+                event_triggered[t] = True
+                kalman_gain_norm[t] = 0.0  # No measurement incorporated
+
+            else:
+                # ── STAGE 2: Soft Confidence-Gated Tether ─────────────
+                # After max_coast_frames of blind coasting, the filter
+                # switches to a HIGH-R measurement update. This means:
+                #   - We partially trust the raw detector (despite low c_t)
+                #   - R_t is inflated by the low confidence via our standard
+                #     dynamic-R formula, so K will be small (K ≈ 0.05–0.15)
+                #   - The filter follows the arm's macro-retraction back to
+                #     the hip, eliminating the horizontal flatline
+                #   - High-frequency jitter is still filtered out
+                #
+                # This is the key insight from the Argon diagnostic:
+                # even when MediaPipe's confidence drops below 0.50, its
+                # landmark regressor still tracks the rough macro-retraction
+                # of the arm (0.81 → 0.66), just with added jitter.
+
+                # Damp prediction covariance (same as Stage 1)
+                P_tether = P_pred.copy()
+                P_tether[2, 2] *= vel_decay ** 2
+                P_tether[3, 3] *= vel_decay ** 2
+                P_tether[4, 4] *= acc_decay ** 2
+                P_tether[5, 5] *= acc_decay ** 2
+
+                # Use confidence-gated R but with a floor to prevent
+                # over-trusting noisy measurements during long occlusions
+                effective_c = max(c_t, 0.05)  # Floor at 5% to avoid div-by-zero
+                R_tether = compute_dynamic_R(effective_c, sigma_0, gamma)
+
+                z = np.array([xs[t], ys[t]], dtype=np.float64)
+                y_innov = z - H @ x_pred
+                S = H @ P_tether @ H.T + R_tether
+                K = P_tether @ H.T @ np.linalg.inv(S)
+
+                x_state = x_pred + K @ y_innov
+
+                # Damp state velocity and acceleration (same as Stage 1)
+                x_state[2] *= vel_decay
+                x_state[3] *= vel_decay
+                x_state[4] *= acc_decay
+                x_state[5] *= acc_decay
+
+                # Joseph-form covariance update
+                I_KH = np.eye(6, dtype=np.float64) - K @ H
+                P = I_KH @ P_tether @ I_KH.T + K @ R_tether @ K.T
+
+                event_triggered[t] = True
+                kalman_gain_norm[t] = np.linalg.norm(K)
 
         else:
             # ── VISIBLE: Kalman measurement update ────────────────────
@@ -425,6 +481,29 @@ def run_ekf_single_joint(
             else:
                 # Standard Kalman: fixed R (as if confidence is always 1.0)
                 R = (sigma_0 ** 2) * np.eye(2, dtype=np.float64)
+
+            # ── Re-acquisition Blending (Bug-fix) ─────────────────────
+            # When confidence recovers above threshold after an occlusion,
+            # the exploded P_pred would normally produce K ≈ 1.0, causing
+            # a 1-frame coordinate teleport ("cliff drop"). To prevent this,
+            # we inflate R by a decaying multiplier over reacq_ramp_frames
+            # so the filter gently blends back to full measurement trust.
+            #
+            # Frame 1 after recovery: R × 10.0  → K small, gentle blend
+            # Frame 2: R × 6.07
+            # Frame 3: R × 3.68
+            # Frame 4: R × 2.23
+            # Frame 5: R × 1.35
+            # Frame 6+: R × 1.0   → fully settled
+            if coast_frames > 0:
+                # We just exited an occlusion — start the ramp
+                frames_since_reacq = 0
+
+            if frames_since_reacq < reacq_ramp_frames:
+                # Exponential decay from 10× down to 1×
+                ramp_multiplier = 1.0 + 9.0 * np.exp(-1.5 * frames_since_reacq)
+                R = R * ramp_multiplier
+                frames_since_reacq += 1
 
             # The actual measurement from the pose estimator
             z = np.array([xs[t], ys[t]], dtype=np.float64)

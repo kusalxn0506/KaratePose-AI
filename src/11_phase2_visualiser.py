@@ -18,7 +18,7 @@ _FILTER_COLORS = {
 }
 _FILTER_LABELS = {
     "raw":           "Raw (No Filter)",
-    "skf":           "Savitzky–Golay",
+    "skf":           "Standard Kalman",
     "linear_interp": "Linear Interp.",
     "ekf":           "Event-Triggered EKF",
 }

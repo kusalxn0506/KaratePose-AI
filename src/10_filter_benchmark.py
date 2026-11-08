@@ -1,10 +1,21 @@
 """
 10_filter_benchmark.py — Comparative Filter Evaluation
 Compares all 4 filter modes (raw, skf, linear_interp, ekf) using:
-  - MPJPE: Mean Per-Joint Position Error
+  - MPJPE: Mean Per-Joint Position Error (confidence-masked)
   - PCK@0.2: Percentage of Correct Keypoints (normalised by torso diameter)
   - Phase Lag: Cross-correlation peak offset in frames
-  - Peak Velocity Preservation Ratio
+  - Peak Velocity Preservation Ratio (confidence-masked)
+
+NOTE ON GROUND TRUTH:
+  When no separate --reference CSV is provided, the reference defaults to
+  the raw landmarks CSV. This means the "raw" filter mode will produce
+  MPJPE ≈ 0 by definition (it IS the reference). This is expected and
+  noted in the benchmark output. The informative comparisons are between
+  the non-raw filters and the reference.
+
+  Confidence masking: frames where the raw detector confidence falls below
+  CONF_MASK_THRESHOLD are excluded from MPJPE and PVR calculations. This
+  prevents low-confidence glitch frames from corrupting the metrics.
 """
 
 import argparse
@@ -15,24 +26,48 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 
-from src.config import PATHS
+from src.config import PATHS, EKF_CONFIG
 
 FILTER_MODES = ["raw", "skf", "linear_interp", "ekf"]
+
+# Frames with raw confidence below this threshold are excluded from
+# MPJPE and PVR calculations, so low-confidence glitches do not
+# inflate artificial velocity spikes or drag reference accuracy.
+CONF_MASK_THRESHOLD = EKF_CONFIG.get("confidence_threshold", 0.50)
 
 
 # ── Metric Functions ────────────────────────────────────────────────────────
 
 def compute_mpjpe(filtered_df: pd.DataFrame, reference_df: pd.DataFrame,
-                  model: str) -> pd.DataFrame:
-    """Mean Per-Joint Position Error between filtered and reference coordinates."""
+                  model: str, conf_mask_threshold: float = None) -> pd.DataFrame:
+    """Mean Per-Joint Position Error between filtered and reference coordinates.
+
+    When conf_mask_threshold is set, frames where the reference confidence
+    is below the threshold are excluded from the error calculation.
+    """
+    if conf_mask_threshold is None:
+        conf_mask_threshold = CONF_MASK_THRESHOLD
+
     filt = filtered_df[filtered_df["model"] == model].copy()
     ref = reference_df[reference_df["model"] == model].copy()
 
+    # Build merge keys — include confidence from reference if available
+    ref_cols = ["frame", "joint_name", "x", "y"]
+    if "confidence" in ref.columns:
+        ref_cols.append("confidence")
+
     merged = pd.merge(
         filt[["frame", "joint_name", "filtered_x", "filtered_y"]],
-        ref[["frame", "joint_name", "x", "y"]],
+        ref[ref_cols],
         on=["frame", "joint_name"], suffixes=("_filt", "_ref")
     )
+    if merged.empty:
+        return pd.DataFrame()
+
+    # Confidence masking: exclude low-confidence reference frames
+    if "confidence" in merged.columns and conf_mask_threshold > 0:
+        merged = merged[merged["confidence"] >= conf_mask_threshold]
+
     if merged.empty:
         return pd.DataFrame()
 
@@ -124,19 +159,67 @@ def compute_phase_lag(filtered_series: np.ndarray,
 def compute_peak_velocity_ratio(filtered_df: pd.DataFrame,
                                 reference_df: pd.DataFrame,
                                 joint_name: str, model: str,
-                                dt: float = 1/60) -> float:
-    """Peak velocity of filtered / peak velocity of reference."""
-    def _peak_vel(df, x_col, y_col):
-        jdf = df[(df["joint_name"] == joint_name) & (df["model"] == model)].sort_values("frame")
+                                dt: float = 1/60,
+                                conf_mask_threshold: float = None) -> float:
+    """Peak velocity of filtered / peak velocity of reference.
+
+    Both filtered and reference peak velocities are confidence-masked:
+    velocity is only computed between consecutive frames where the
+    REFERENCE confidence is above the threshold. This ensures that:
+      - Reference peak velocity reflects true physical motion (not glitches)
+      - Filtered peak velocity is evaluated only on the same reliable frames,
+        so PVR ≈ 1.0 means "the filter faithfully reproduces visible motion"
+        and PVR > 1.0 means "the filter captures motion peaks that raw data
+        loses to glitches" (the desired Kime-preservation effect).
+    """
+    if conf_mask_threshold is None:
+        conf_mask_threshold = CONF_MASK_THRESHOLD
+
+    # Get reference confidence mask for this joint
+    ref_jdf = reference_df[
+        (reference_df["joint_name"] == joint_name) &
+        (reference_df["model"] == model)
+    ].sort_values("frame")
+
+    if len(ref_jdf) < 2:
+        return np.nan
+
+    ref_frames = ref_jdf["frame"].values
+    ref_confs = ref_jdf["confidence"].values if "confidence" in ref_jdf.columns else np.ones(len(ref_jdf))
+    conf_mask = ref_confs >= conf_mask_threshold
+
+    if conf_mask.sum() < 2:
+        return np.nan
+
+    def _masked_peak_vel(df, x_col, y_col):
+        """Compute peak velocity only between consecutive confident frames."""
+        jdf = df[
+            (df["joint_name"] == joint_name) & (df["model"] == model)
+        ].sort_values("frame")
         if len(jdf) < 2:
             return np.nan
-        vx = np.diff(jdf[x_col].values) / dt
-        vy = np.diff(jdf[y_col].values) / dt
-        speed = np.sqrt(vx**2 + vy**2)
-        return np.max(speed)
 
-    v_filt = _peak_vel(filtered_df, "filtered_x", "filtered_y")
-    v_ref = _peak_vel(reference_df, "x", "y")
+        x_vals = jdf[x_col].values
+        y_vals = jdf[y_col].values
+        frames = jdf["frame"].values
+
+        # Use the same confidence mask (from reference) for both sides
+        # Build a frame→mask lookup
+        frame_mask = dict(zip(ref_frames, conf_mask))
+
+        speeds = []
+        prev_idx = None
+        for i in range(len(jdf)):
+            if frame_mask.get(frames[i], False):
+                if prev_idx is not None and (frames[i] - frames[prev_idx]) == 1:
+                    vx = (x_vals[i] - x_vals[prev_idx]) / dt
+                    vy = (y_vals[i] - y_vals[prev_idx]) / dt
+                    speeds.append(np.sqrt(vx**2 + vy**2))
+                prev_idx = i
+        return np.max(speeds) if speeds else np.nan
+
+    v_filt = _masked_peak_vel(filtered_df, "filtered_x", "filtered_y")
+    v_ref = _masked_peak_vel(reference_df, "x", "y")
 
     if np.isnan(v_ref) or v_ref < 1e-9:
         return np.nan
