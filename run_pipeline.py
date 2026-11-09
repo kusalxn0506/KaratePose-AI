@@ -21,6 +21,7 @@
 #     python run_pipeline.py --phase 2 --step cog       # CoG tracking only
 #     python run_pipeline.py --phase 2 --step benchmark # Filter comparison only
 #     python run_pipeline.py --phase 2 --step plots     # Phase 2 publication figures
+#     python run_pipeline.py --phase 2 --step overlay   # Raw vs EKF video overlay
 #
 # HOW IT CONNECTS:
 #   Phase 1 (Paper 1 — The Degradation Problem):
@@ -496,6 +497,19 @@ def phase2_step_plots() -> None:
     _visualiser2.generate_all_phase2_plots()
 
 
+def phase2_step_overlay() -> None:
+    """Phase 2 Step 5: Generate side-by-side video overlay (Raw vs EKF)."""
+    print_step(5, "Video Overlay (Raw vs EKF Skeleton)")
+
+    try:
+        _overlay = importlib.import_module("src.12_phase2_overlay")
+    except ModuleNotFoundError:
+        print("  ⚠️  Module 12 (phase2_overlay) not found.")
+        return
+
+    _overlay.generate_all_overlays()
+
+
 # =============================================================================
 # MAIN ENTRY POINT
 # =============================================================================
@@ -526,7 +540,7 @@ def main():
         default="all",
         choices=["all", "extract", "inference", "metrics", "reps",
                  "aggregate", "statistics", "visualise",
-                 "filter", "cog", "benchmark", "plots"],
+                 "filter", "cog", "benchmark", "plots", "overlay"],
         help="Which pipeline step to run (default: all)"
     )
     parser.add_argument(
@@ -551,7 +565,7 @@ def main():
 
     # Validate step belongs to the chosen phase
     phase1_steps = {"all", "extract", "inference", "metrics", "reps", "aggregate", "statistics", "visualise"}
-    phase2_steps = {"all", "filter", "cog", "benchmark", "plots"}
+    phase2_steps = {"all", "filter", "cog", "benchmark", "plots", "overlay"}
 
     if args.phase == 1 and args.step not in phase1_steps:
         print(f"  ⚠️  Step '{args.step}' is a Phase 2 step. Use --phase 2 --step {args.step}")
@@ -601,6 +615,10 @@ def main():
         # Step 4: Phase 2 Plots
         if args.step in ("all", "plots"):
             phase2_step_plots()
+
+        # Step 5: Video Overlay (Raw vs EKF)
+        if args.step in ("all", "overlay"):
+            phase2_step_overlay()
 
     # ════════════════════════════════════════════════════════════════════
     # PHASE 1 — Video → Frames → Pose → Metrics → Stats → Plots
