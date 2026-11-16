@@ -2,8 +2,8 @@
 
 > **Created:** 1 November 2026
 > **Author:** Kusal Nirmala
-> **Git branch:** `main` (all code pushed as of commit `9557cb3`)
-> **Last Updated:** 8 November 2026 — Bug-fix release (EKF covariance damping, benchmark masking, label fix)
+> **Git branch:** `main` (all code pushed as of commit `e8f57f4`)
+> **Last Updated:** 16 November 2026 — Added Phase 2 video overlay + publication prototype
 
 ---
 
@@ -30,7 +30,9 @@
 - [x] `src/rep_detector.py` — Velocity-based auto rep segmentation
 - [x] `src/11_phase2_visualiser.py` — Publication-ready plots for Paper 2 (8 figures)
   - [x] **Bug-fix (8 Nov):** SKF label corrected from "Savitzky–Golay" to "Standard Kalman"
-- [x] `run_pipeline.py` — Full orchestrator (`--phase 1` / `--phase 2`, includes `--step plots`)
+- [x] `src/12_phase2_overlay.py` — Side-by-side Raw vs EKF video overlay with skeleton rendering
+  - [x] **Added (9 Nov):** Three-panel mode, confidence annotations, side-by-side comparison
+- [x] `run_pipeline.py` — Full orchestrator (`--phase 1` / `--phase 2`, includes `--step plots`, `--step overlay`)
 - [x] `src/config.py` — All EKF params, de Leva weights, benchmark paths
   - [x] **Added (8 Nov):** `max_coast_frames` (12) and `reacq_ramp_frames` (5) parameters
 
@@ -40,6 +42,7 @@
 - [x] `docs/Video_Recording_Guide.md` — Updated to self-paced protocol (no metronome)
 - [x] `docs/Paper_1_Draft.md` — Manuscript 1 draft (The Degradation Problem)
 - [x] `docs/Paper_2_Draft.md` — Manuscript 2 draft (The EKF & CoG Solution)
+- [x] **Publication Prototype (16 Nov):** Paper 2 publication-ready document with embedded figures, LaTeX equations, and `[PLACEHOLDER]` markers for multi-practitioner data
 
 ### Git — All Pushed
 - [x] All code and docs committed to `origin/main`
@@ -245,6 +248,10 @@ python run_pipeline.py --phase 2 --step benchmark
 # Phase 2 publication plots
 python run_pipeline.py --phase 2 --step plots
 python -m src.11_phase2_visualiser
+
+# Phase 2 video overlay (Raw vs EKF side-by-side)
+python run_pipeline.py --phase 2 --step overlay
+python -m src.12_phase2_overlay --three-panel
 
 # Rep detection
 python -m src.rep_detector --input data/landmarks/FILE.csv --technique OIZUKI
